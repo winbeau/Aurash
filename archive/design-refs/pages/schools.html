@@ -1,0 +1,1655 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>高校信息 · LabNotes</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="stylesheet" href="styles.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="mega-menu.jsx"></script>
+<script type="text/babel" src="schools-data.jsx"></script>
+<style>
+  body { font-size: 14.5px; }
+
+  /* ---------- top nav (matches home.html) ---------- */
+  .nav { height: 56px; border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 30; display: flex; align-items: center; padding: 0 28px; gap: 24px; }
+  .nav-brand { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 600; font-size: 15px; color: var(--fg); cursor: pointer; }
+  .nav-tabs { display: flex; gap: 4px; }
+  .nav-tab { font-family: var(--font-ui); font-size: 14px; font-weight: 500; color: var(--fg-muted); padding: 7px 12px; border-radius: var(--r-md); cursor: pointer; transition: background var(--t-fast), color var(--t-fast); }
+  .nav-tab:hover { background: var(--bg-soft); color: var(--fg); }
+  .nav-tab.active { color: var(--fg); background: var(--bg-soft); }
+  .nav-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .guest-badge { font-family: var(--font-ui); font-size: 12px; color: var(--fg-muted); background: var(--bg-soft); padding: 4px 10px; border-radius: var(--r-sm); font-weight: 500; }
+  .avatar-trigger { width: 32px; height: 32px; border-radius: 50%; background: var(--bg-soft); color: var(--fg); font-family: var(--font-ui); font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid var(--line); }
+
+  /* ---------- page wrap — full bleed, unlike other pages ---------- */
+  .page-school {
+    width: 100%;
+    margin: 0;
+    padding: 28px 28px 64px;
+  }
+  @media (min-width: 1600px) {
+    .page-school { padding-left: 40px; padding-right: 40px; }
+  }
+  .page-h {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 16px; margin-bottom: 18px;
+  }
+  .page-h h1 {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 28px;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .page-h .sub {
+    font-family: var(--font-ui);
+    font-size: 13px;
+    color: var(--fg-muted);
+  }
+  .page-h .sub strong { color: var(--fg); font-weight: 600; }
+
+  /* ---------- group tabs (Top2 / 华五) ---------- */
+  .grp-tabs {
+    display: flex; gap: 0;
+    border-bottom: 1px solid var(--line);
+    margin: 0 0 14px;
+  }
+  .grp-tab {
+    font-family: var(--font-serif);
+    font-weight: 500;
+    font-size: 17px;
+    color: var(--fg-muted);
+    padding: 8px 14px 12px;
+    cursor: pointer;
+    position: relative;
+    letter-spacing: -0.005em;
+    transition: color var(--t-fast);
+  }
+  .grp-tab:hover { color: var(--fg); }
+  .grp-tab.on { color: var(--fg); }
+  .grp-tab.on::after {
+    content: ""; position: absolute; left: 14px; right: 14px; bottom: -1px; height: 2px;
+    background: var(--fg); border-radius: 1px;
+  }
+  .grp-count {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--fg-faint); margin-left: 6px;
+    vertical-align: 1px;
+  }
+
+  /* ---------- school chips ---------- */
+  .school-row {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin: 0 0 18px;
+  }
+  .school-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-ui); font-size: 13px;
+    cursor: pointer;
+    transition: background var(--t-fast), border-color var(--t-fast);
+  }
+  .school-chip:hover { background: var(--bg-soft); }
+  .school-chip.on {
+    background: var(--fg); color: #fff; border-color: var(--fg);
+  }
+  .school-chip-mark {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    color: var(--fg-muted);
+    font-family: var(--font-serif); font-weight: 600; font-size: 11px;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .school-chip.on .school-chip-mark { background: rgba(255,255,255,0.18); color: #fff; }
+  .school-chip-city {
+    font-family: var(--font-mono); font-size: 11px; opacity: 0.55;
+  }
+
+  /* ---------- filter bar ---------- */
+  .filters {
+    background: var(--bg-soft);
+    border-radius: var(--r-lg);
+    padding: 12px 14px;
+    margin: 0 0 12px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .fl-row {
+    display: flex; align-items: center; gap: 10px;
+    flex-wrap: wrap;
+  }
+  .fl-label {
+    font-family: var(--font-ui);
+    font-size: 11.5px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--fg-faint);
+    flex: 0 0 56px;
+  }
+  .fl-chips { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; min-width: 0; }
+  .fl-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    font-family: var(--font-ui); font-size: 12px;
+    color: var(--fg-muted);
+    cursor: pointer;
+    transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
+  }
+  .fl-chip:hover { color: var(--fg); border-color: var(--line-strong); }
+  .fl-chip.on {
+    background: var(--fg); color: #fff; border-color: var(--fg);
+  }
+  .fl-chip-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: currentColor; opacity: 0.7;
+  }
+  .fl-chip.tone-pos.on { background: var(--cat-tools); border-color: var(--cat-tools); }
+  .fl-chip.tone-neg.on { background: var(--cat-research); border-color: var(--cat-research); }
+  .fl-chip.tone-neu.on { background: var(--fg-muted); border-color: var(--fg-muted); }
+  .fl-chip.tone-unk.on { background: var(--fg-muted); border-color: var(--fg-muted); }
+
+  .fl-search {
+    position: relative; flex: 1 1 auto; max-width: 320px;
+  }
+  .fl-search input {
+    width: 100%;
+    padding: 6px 10px 6px 30px;
+    font-family: var(--font-ui); font-size: 13px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    color: var(--fg); outline: none;
+    transition: border-color var(--t-fast);
+  }
+  .fl-search input:focus { border-color: var(--fg); }
+  .fl-search svg { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); color: var(--fg-faint); }
+
+  .fl-toggle {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-ui); font-size: 12.5px;
+    color: var(--fg-muted); cursor: pointer; user-select: none;
+  }
+  .fl-toggle-sw {
+    width: 26px; height: 14px; border-radius: 8px;
+    background: var(--line-strong);
+    position: relative; transition: background var(--t-fast);
+  }
+  .fl-toggle-sw::after {
+    content: ""; position: absolute; top: 1px; left: 1px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #fff; transition: transform var(--t-fast);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+  }
+  .fl-toggle.on .fl-toggle-sw { background: var(--fg); }
+  .fl-toggle.on .fl-toggle-sw::after { transform: translateX(12px); }
+  .fl-toggle.on { color: var(--fg); }
+
+  .fl-stats {
+    font-family: var(--font-mono); font-size: 11.5px;
+    color: var(--fg-faint);
+    white-space: nowrap;
+    margin-left: auto;
+  }
+
+  /* ---------- table ---------- */
+  .tbl-wrap {
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    overflow-x: auto;
+    overflow-y: visible;
+    background: var(--bg);
+  }
+  .tbl-wrap::-webkit-scrollbar { height: 8px; }
+  .tbl-wrap::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+  .tbl-wrap::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
+  .tbl {
+    width: 100%;
+    min-width: 1412px;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-family: var(--font-ui);
+    font-size: 13px;
+    table-layout: fixed;
+  }
+  .tbl thead th {
+    background: var(--bg-soft);
+    color: var(--fg-muted);
+    font-weight: 600;
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line);
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .tbl thead th.sortable { cursor: pointer; transition: color var(--t-fast); }
+  .tbl thead th.sortable:hover { color: var(--fg); }
+  .tbl thead th .sort-icon {
+    display: inline-block; vertical-align: -1px; margin-left: 3px;
+    color: var(--fg-faint); transition: color var(--t-fast), transform var(--t-fast);
+  }
+  .tbl thead th.sort-active { color: var(--fg); }
+  .tbl thead th.sort-active .sort-icon { color: var(--fg); }
+  .tbl tbody td {
+    padding: 12px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+    color: var(--fg);
+    background: var(--bg);
+    transition: background var(--t-fast);
+  }
+  .tbl tbody tr:last-child td { border-bottom: none; }
+  .tbl tbody tr:hover td { background: var(--bg-soft); }
+
+  /* row coloring: negative = soft red wash, persists on hover */
+  .tbl tbody tr.row-neg td { background: rgba(224, 62, 62, 0.04); }
+  .tbl tbody tr.row-neg:hover td { background: rgba(224, 62, 62, 0.08); }
+
+  /* col widths (avatar col removed) */
+  .col-name   { width: 92px; }
+  .col-dept   { width: 160px; }
+  .col-title  { width: 88px; }
+  .col-interests { width: 180px; }
+  .col-email  { width: 220px; }
+  .col-recruit{ width: 88px; }
+  .col-rep    { width: 92px; }
+  .col-summary{ width: 280px; }
+  .col-updated{ width: 80px; }
+  .col-actions{ width: 132px; }
+
+  /* avatar */
+  .av {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    color: var(--fg-muted);
+    font-family: var(--font-serif); font-weight: 600;
+    font-size: 13px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+  }
+
+  /* name */
+  .name-cell {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 14.5px;
+    color: var(--fg);
+    cursor: pointer;
+    letter-spacing: -0.005em;
+    line-height: 1.3;
+  }
+  .name-cell:hover { color: var(--link); }
+  .name-en {
+    display: block;
+    font-family: var(--font-ui);
+    font-size: 11px;
+    color: var(--fg-faint);
+    font-weight: 400;
+    margin-top: 1px;
+  }
+
+  /* dept chips (column) */
+  .dept-stack { display: flex; flex-wrap: wrap; gap: 3px; }
+  .dept-chip {
+    display: inline-flex; padding: 1px 6px;
+    background: var(--bg-soft);
+    color: var(--fg-muted);
+    border-radius: 3px;
+    font-family: var(--font-ui); font-size: 11px;
+    line-height: 1.55;
+    max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* title */
+  .title-cell { font-size: 12.5px; color: var(--fg); white-space: nowrap; }
+  .title-cell.assist { color: var(--cat-tools); }
+  .title-cell.prof   { color: var(--fg); font-weight: 500; }
+
+  /* research interests chips */
+  .ri-stack { display: flex; flex-wrap: wrap; gap: 3px; align-items: center; }
+  .ri-chip {
+    display: inline-flex; padding: 1px 7px;
+    background: var(--bg-soft);
+    color: var(--fg-muted);
+    border-radius: 3px;
+    font-family: var(--font-ui); font-size: 11.5px;
+    line-height: 1.6;
+  }
+  .ri-more {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--fg-faint);
+  }
+  .ri-empty { font-family: var(--font-ui); font-size: 11.5px; color: var(--fg-faint); font-style: italic; }
+
+  /* email cell with copy */
+  .email-cell {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--fg);
+    cursor: pointer;
+    padding: 3px 7px;
+    border-radius: 4px;
+    background: var(--bg-soft);
+    max-width: 100%;
+    transition: background var(--t-fast);
+  }
+  .email-cell:hover { background: var(--bg-hover); }
+  .email-cell.copied { background: rgba(15, 123, 108, 0.12); color: var(--cat-tools); }
+  .email-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .email-icon { flex: 0 0 auto; opacity: 0.5; }
+  .email-cell:hover .email-icon { opacity: 1; }
+  .email-cell.copied .email-icon { opacity: 1; color: var(--cat-tools); }
+  .email-empty {
+    font-family: var(--font-ui); font-size: 11.5px;
+    color: var(--fg-faint);
+    font-style: italic;
+  }
+
+  /* recruit badge + confidence bar */
+  .rb {
+    display: inline-flex; flex-direction: column; gap: 4px;
+    min-width: 96px;
+  }
+  .rb-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--font-ui); font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.6;
+    width: fit-content;
+  }
+  .rb-badge.rec-yes { background: rgba(15, 123, 108, 0.12); color: var(--cat-tools); }
+  .rb-badge.rec-no  { background: rgba(224, 62, 62, 0.10);  color: var(--cat-research); }
+  .rb-badge.rec-unk { background: var(--bg-soft); color: var(--fg-muted); }
+  .rb-badge .rb-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .conf-bar {
+    height: 3px; width: 86px;
+    background: var(--line);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .conf-bar-fill {
+    height: 100%; background: var(--fg-faint);
+    border-radius: 2px;
+  }
+  .rb.rec-yes .conf-bar-fill { background: var(--cat-tools); }
+  .rb.rec-no  .conf-bar-fill { background: var(--cat-research); }
+  .conf-text { font-family: var(--font-mono); font-size: 10px; color: var(--fg-faint); }
+
+  /* reputation badge */
+  .rep {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: var(--font-ui); font-size: 11.5px;
+    font-weight: 500;
+    line-height: 1.7;
+    width: fit-content;
+  }
+  .rep.pos { background: rgba(15, 123, 108, 0.12); color: var(--cat-tools); }
+  .rep.neu { background: var(--bg-soft); color: var(--fg-muted); }
+  .rep.unk { background: var(--bg-soft); color: var(--fg-faint); }
+  .rep.neg {
+    background: var(--cat-research); color: #fff;
+    box-shadow: 0 0 0 1px rgba(224, 62, 62, 0.25);
+  }
+  .rep .rep-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.85; }
+  .rep.neg .rep-dot { background: #fff; opacity: 1; }
+
+  /* summary cell — clamps to 2 lines, full text on hover via title attr + drawer */
+  .sum-cell {
+    font-family: var(--font-serif);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--fg);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    cursor: help;
+  }
+  .sum-empty {
+    font-family: var(--font-ui); font-size: 11.5px;
+    color: var(--fg-faint); font-style: italic;
+  }
+
+  /* updated cell */
+  .updated-cell {
+    font-family: var(--font-mono); font-size: 11.5px;
+    color: var(--fg-muted);
+    white-space: nowrap;
+  }
+  .updated-cell.never { color: var(--fg-faint); font-style: italic; font-family: var(--font-ui); }
+
+  /* actions */
+  .act-row {
+    display: inline-flex; gap: 2px;
+    align-items: center;
+  }
+  .act-btn {
+    width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 4px;
+    color: var(--fg-muted);
+    cursor: pointer;
+    background: transparent;
+    transition: background var(--t-fast), color var(--t-fast);
+    border: 0;
+    position: relative;
+  }
+  .act-btn:hover { background: var(--bg-hover); color: var(--fg); }
+
+  /* empty state */
+  .empty {
+    padding: 60px 20px;
+    text-align: center;
+    color: var(--fg-faint);
+    font-family: var(--font-ui);
+    font-size: 13px;
+  }
+  .empty-h {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 18px;
+    color: var(--fg-muted);
+    margin: 0 0 6px;
+  }
+
+  /* ---------- drawer ---------- */
+  .dr-back {
+    position: fixed; inset: 0;
+    background: rgba(15, 15, 15, 0.32);
+    backdrop-filter: blur(2px);
+    z-index: 80;
+    animation: drBack 180ms ease-out;
+  }
+  @keyframes drBack { from { opacity: 0; } to { opacity: 1; } }
+
+  .dr {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: min(520px, 92vw);
+    background: var(--bg);
+    border-left: 1px solid var(--line);
+    box-shadow: -8px 0 32px rgba(0, 0, 0, 0.08);
+    z-index: 90;
+    display: flex; flex-direction: column;
+    animation: drIn 220ms ease-out;
+  }
+  @keyframes drIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+  .dr-head {
+    flex: 0 0 auto;
+    border-bottom: 1px solid var(--line);
+  }
+  .dr-head-top {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 20px 22px 16px;
+  }
+  .dr-av {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    color: var(--fg);
+    font-family: var(--font-serif); font-weight: 600;
+    font-size: 20px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: 0 0 auto;
+  }
+  .dr-id { flex: 1 1 auto; min-width: 0; }
+  .dr-name {
+    font-family: var(--font-serif); font-weight: 600;
+    font-size: 22px;
+    color: var(--fg);
+    margin: 0 0 2px;
+    letter-spacing: -0.01em;
+  }
+  .dr-meta {
+    font-family: var(--font-ui); font-size: 12.5px;
+    color: var(--fg-muted);
+    display: flex; flex-wrap: wrap; gap: 6px 10px;
+    align-items: center;
+  }
+  .dr-meta-school {
+    font-weight: 500; color: var(--fg);
+  }
+  .dr-close {
+    width: 32px; height: 32px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; border: 0; border-radius: var(--r-sm);
+    color: var(--fg-muted);
+    cursor: pointer;
+    transition: background var(--t-fast), color var(--t-fast);
+    flex: 0 0 auto;
+  }
+  .dr-close:hover { background: var(--bg-soft); color: var(--fg); }
+
+  .dr-badge-row {
+    display: flex; gap: 8px;
+    padding: 0 22px 14px;
+    flex-wrap: wrap;
+  }
+  .dr-big-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-family: var(--font-ui); font-size: 12.5px;
+    font-weight: 500;
+  }
+  .dr-big-badge.rec-yes { background: rgba(15, 123, 108, 0.12); color: var(--cat-tools); }
+  .dr-big-badge.rec-no  { background: rgba(224, 62, 62, 0.10);  color: var(--cat-research); }
+  .dr-big-badge.rec-unk { background: var(--bg-soft); color: var(--fg-muted); }
+  .dr-big-badge.rep-pos { background: rgba(15, 123, 108, 0.12); color: var(--cat-tools); }
+  .dr-big-badge.rep-neu { background: var(--bg-soft); color: var(--fg-muted); }
+  .dr-big-badge.rep-unk { background: var(--bg-soft); color: var(--fg-faint); }
+  .dr-big-badge.rep-neg { background: var(--cat-research); color: #fff; }
+  .dr-big-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* drawer tabs */
+  .dr-tabs {
+    display: flex; gap: 0;
+    padding: 0 14px;
+    border-bottom: 1px solid var(--line);
+    margin-top: 2px;
+  }
+  .dr-tab {
+    padding: 9px 12px;
+    font-family: var(--font-ui); font-size: 12.5px; font-weight: 500;
+    color: var(--fg-muted);
+    cursor: pointer;
+    position: relative;
+    transition: color var(--t-fast);
+  }
+  .dr-tab:hover { color: var(--fg); }
+  .dr-tab.on { color: var(--fg); }
+  .dr-tab.on::after {
+    content: ""; position: absolute; left: 12px; right: 12px; bottom: -1px;
+    height: 2px; background: var(--fg); border-radius: 1px;
+  }
+  .dr-tab-count {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--fg-faint); margin-left: 4px;
+    background: var(--bg-soft); padding: 1px 5px; border-radius: 3px;
+  }
+  .dr-tab.on .dr-tab-count { color: var(--fg-muted); }
+
+  .dr-body {
+    flex: 1 1 auto; overflow-y: auto;
+    padding: 18px 22px 32px;
+  }
+  .dr-body::-webkit-scrollbar { width: 8px; }
+  .dr-body::-webkit-scrollbar-thumb { background: var(--line); border-radius: 4px; }
+
+  /* drawer sections */
+  .dr-banner {
+    background: var(--bg-soft);
+    border-radius: var(--r-md);
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    border-left: 3px solid var(--fg);
+  }
+  .dr-banner-h {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--font-ui); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--fg-muted); font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .dr-banner-body {
+    font-family: var(--font-serif);
+    font-size: 14px; line-height: 1.65;
+    color: var(--fg);
+  }
+  .dr-banner.empty-banner {
+    border-left-color: var(--line-strong);
+    color: var(--fg-faint);
+  }
+  .dr-banner.empty-banner .dr-banner-body {
+    font-style: italic; color: var(--fg-faint);
+    font-family: var(--font-ui); font-size: 13px;
+  }
+
+  .dr-sec { margin-bottom: 20px; }
+  .dr-sec-h {
+    font-family: var(--font-ui); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--fg-muted); font-weight: 600;
+    margin: 0 0 8px;
+  }
+
+  .dr-kv-row {
+    display: grid; grid-template-columns: 80px 1fr;
+    gap: 8px 12px;
+    font-family: var(--font-ui); font-size: 13px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .dr-kv-row:last-child { border-bottom: none; }
+  .dr-kv-row .k { color: var(--fg-muted); }
+  .dr-kv-row .v { color: var(--fg); word-break: break-all; }
+  .dr-kv-row .v a { color: var(--link); }
+  .dr-kv-row .v.mono { font-family: var(--font-mono); font-size: 12px; }
+  .dr-kv-row .v.empty { color: var(--fg-faint); font-style: italic; }
+
+  .dr-bio {
+    background: var(--bg-soft);
+    border-radius: var(--r-md);
+    padding: 10px 14px;
+    font-family: var(--font-serif);
+    font-size: 13.5px; line-height: 1.65;
+    color: var(--fg);
+    margin-top: 6px;
+  }
+  .dr-bio-toggle {
+    font-family: var(--font-ui); font-size: 12px;
+    color: var(--link); cursor: pointer;
+    display: inline-flex; align-items: center; gap: 3px;
+  }
+  .dr-bio-toggle:hover { text-decoration: underline; }
+
+  /* matrix table */
+  .matrix {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-family: var(--font-ui); font-size: 13px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    overflow: hidden;
+    table-layout: fixed;
+  }
+  .matrix th {
+    background: var(--bg-soft);
+    color: var(--fg-muted);
+    font-weight: 600;
+    text-align: center;
+    padding: 8px 6px;
+    font-size: 11.5px;
+    text-transform: uppercase; letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--line);
+  }
+  .matrix th:first-child { text-align: left; padding-left: 12px; width: 80px; }
+  .matrix td {
+    padding: 10px 6px;
+    text-align: center;
+    border-bottom: 1px solid var(--line);
+    color: var(--fg);
+    vertical-align: middle;
+  }
+  .matrix tr:last-child td { border-bottom: none; }
+  .matrix td:first-child { text-align: left; padding-left: 12px; font-weight: 500; color: var(--fg); }
+  .matrix .cell-quota {
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 4px 6px;
+    display: inline-flex; flex-direction: column; gap: 2px; align-items: center;
+    transition: background var(--t-fast);
+  }
+  .matrix .cell-quota:hover { background: var(--bg-soft); }
+  .matrix .quota-count { font-family: var(--font-serif); font-weight: 600; font-size: 15px; }
+  .matrix .quota-conf  { font-family: var(--font-mono); font-size: 10px; color: var(--fg-faint); }
+  .matrix .cell-empty { color: var(--fg-faint); }
+
+  .quota-popout {
+    background: var(--bg-soft);
+    border-radius: var(--r-md);
+    padding: 10px 12px;
+    margin-top: 8px;
+    font-family: var(--font-ui); font-size: 12.5px;
+    color: var(--fg);
+    line-height: 1.55;
+    border-left: 2px solid var(--line-strong);
+  }
+  .quota-popout-meta {
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--fg-faint);
+    margin-bottom: 4px;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .quota-popout a { color: var(--link); font-family: var(--font-mono); font-size: 11px; }
+
+  /* evaluations */
+  .ev-warn {
+    background: rgba(217, 115, 13, 0.08);
+    border: 1px solid rgba(217, 115, 13, 0.20);
+    color: var(--cat-course);
+    border-radius: var(--r-md);
+    padding: 10px 12px;
+    font-family: var(--font-ui); font-size: 12px;
+    margin-bottom: 14px;
+    line-height: 1.55;
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .ev-warn svg { flex: 0 0 auto; margin-top: 1px; }
+
+  .ev-group { margin-bottom: 18px; }
+  .ev-group-h {
+    display: flex; align-items: center; gap: 6px;
+    margin-bottom: 8px;
+  }
+  .ev-source {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px;
+    background: var(--bg-soft);
+    color: var(--fg);
+    border-radius: 4px;
+    font-family: var(--font-mono); font-size: 11.5px;
+    font-weight: 500;
+  }
+  .ev-source-cnt {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--fg-faint);
+  }
+  .ev-card {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    font-family: var(--font-serif);
+    font-size: 13.5px; line-height: 1.6;
+  }
+  .ev-card-foot {
+    margin-top: 10px;
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--font-ui); font-size: 11.5px;
+    color: var(--fg-faint);
+  }
+  .ev-card-foot a {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--link);
+  }
+  .ev-empty {
+    text-align: center;
+    padding: 30px 12px;
+    color: var(--fg-faint);
+    font-family: var(--font-ui); font-size: 13px;
+    background: var(--bg-soft);
+    border-radius: var(--r-md);
+  }
+
+  /* trace */
+  .trace-line { position: relative; padding-left: 18px; }
+  .trace-line::before {
+    content: ""; position: absolute;
+    left: 5px; top: 8px; bottom: 8px;
+    width: 1px; background: var(--line);
+  }
+  .trace-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: 64px 56px 1fr;
+    gap: 10px;
+    padding: 8px 0;
+    font-family: var(--font-ui); font-size: 12.5px;
+    color: var(--fg-muted);
+    align-items: baseline;
+  }
+  .trace-row::before {
+    content: ""; position: absolute;
+    left: -16px; top: 14px;
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: var(--bg);
+    border: 2px solid var(--line-strong);
+  }
+  .trace-row.final::before { border-color: var(--cat-tools); }
+  .trace-num {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--fg-faint);
+  }
+  .trace-kind {
+    font-family: var(--font-ui); font-size: 11.5px;
+    color: var(--fg);
+    font-weight: 500;
+    padding: 1px 7px;
+    border-radius: 3px;
+    background: var(--bg-soft);
+    width: fit-content;
+  }
+  .trace-row.final .trace-kind { background: rgba(15, 123, 108, 0.12); color: var(--cat-tools); }
+  .trace-detail {
+    font-family: var(--font-mono); font-size: 11.5px;
+    color: var(--fg);
+    overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.6;
+  }
+  .trace-empty {
+    text-align: center;
+    padding: 30px 12px;
+    color: var(--fg-faint);
+    font-family: var(--font-ui); font-size: 13px;
+  }
+
+  /* footer */
+  .footer { height: 60px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-family: var(--font-ui); font-size: 12.5px; color: var(--fg-faint); background: var(--bg); }
+
+  /* scrollbar on table area */
+  .tbl-wrap { position: relative; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo, useRef } = React;
+
+/* ===== icons (extras for this page) ===== */
+const J = {
+  search:    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  copy:      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect width="13" height="13" x="9" y="9" rx="2"/><path d="M5 15c-1.1 0-2-.9-2-2V5c0-1.1.9-2 2-2h8c1.1 0 2 .9 2 2"/></svg>,
+  check:     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5"/></svg>,
+  ext:       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>,
+  info:      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>,
+  x:         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>,
+  arrowUp:   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m18 15-6-6-6 6"/></svg>,
+  arrowDown: <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>,
+  arrowUpDown: <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>,
+  alert:     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>,
+};
+
+/* ===== top nav (matches home) ===== */
+function TopNav({ user, onLogout }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  useEffect(() => {
+    const onClick = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, []);
+  return (
+    <nav className="nav">
+      <div className="nav-brand" onClick={() => location.href = 'home.html'}>
+        <span style={{ fontSize: 18 }}>📓</span>
+        LabNotes
+      </div>
+      <div className="nav-tabs">
+        <div className="nav-tab" onClick={() => location.href = 'home.html'}>主页</div>
+        <BrowseTabWithMenu active={false} />
+        <div className={`nav-tab ${user.role === 'guest' ? 'is-disabled' : ''}`}
+             style={user.role === 'guest' ? { opacity: 0.4, cursor: 'not-allowed' } : null}
+             onClick={() => user.role !== 'guest' && (location.href = 'write.html')}>
+          写作
+        </div>
+        <div className="nav-tab active">高校信息</div>
+      </div>
+      <div className="nav-right">
+        {user.role === 'guest' ? (
+          <>
+            <span className="guest-badge">游客模式</span>
+            <a className="btn btn-sm btn-primary" href="login.html" style={{ textDecoration: 'none' }}>登录</a>
+          </>
+        ) : (
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <div className="avatar-trigger" onClick={() => setMenuOpen(o => !o)}>{user.initials}</div>
+          </div>
+        )}
+      </div>
+    </nav>
+  );
+}
+
+/* ===== filter chip ===== */
+function Chip({ on, onClick, children, tone, dot }) {
+  return (
+    <button
+      className={`fl-chip ${on ? 'on' : ''} ${tone ? `tone-${tone}` : ''}`}
+      onClick={onClick}
+      type="button"
+    >
+      {dot && <span className="fl-chip-dot" style={{ background: dot }}></span>}
+      {children}
+    </button>
+  );
+}
+
+/* ===== toggle ===== */
+function Toggle({ on, onClick, children }) {
+  return (
+    <span className={`fl-toggle ${on ? 'on' : ''}`} onClick={onClick}>
+      <span className="fl-toggle-sw"></span>
+      {children}
+    </span>
+  );
+}
+
+/* ===== email cell ===== */
+function EmailCell({ email, obfuscated }) {
+  const [copied, setCopied] = useState(false);
+  if (!email) {
+    return <span className="email-empty">{obfuscated ? '— 邮箱混淆' : '— 未公开'}</span>;
+  }
+  const onClick = (e) => {
+    e.stopPropagation();
+    navigator.clipboard?.writeText(email).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    });
+  };
+  return (
+    <span className={`email-cell ${copied ? 'copied' : ''}`} onClick={onClick} title={`复制 ${email}`}>
+      <span className="email-text">{email}</span>
+      <span className="email-icon">{copied ? J.check : J.copy}</span>
+    </span>
+  );
+}
+
+/* ===== recruit cell ===== */
+function RecruitCell({ status, conf }) {
+  const label = status === true ? '招生' : status === false ? '不招' : '未知';
+  const klass = status === true ? 'rec-yes' : status === false ? 'rec-no' : 'rec-unk';
+  return (
+    <span className={`rb-badge ${klass}`}>
+      <span className="rb-dot"></span>{label}
+    </span>
+  );
+}
+
+/* ===== reputation cell ===== */
+const REP_LABEL = { positive: '正面', neutral: '中性', negative: '负面', unknown: '未知' };
+const REP_CLASS = { positive: 'pos', neutral: 'neu', negative: 'neg', unknown: 'unk' };
+function RepCell({ tag }) {
+  const t = tag || 'unknown';
+  return <span className={`rep ${REP_CLASS[t]}`}><span className="rep-dot"></span>{REP_LABEL[t]}</span>;
+}
+
+/* ===== sort weight: 招生 desc → positive desc → conf desc → name ===== */
+function defaultSort(a, b) {
+  // 招生 (true > null > false)
+  const rOrder = (x) => x === true ? 0 : x == null ? 1 : 2;
+  if (rOrder(a.is_recruiting) !== rOrder(b.is_recruiting)) return rOrder(a.is_recruiting) - rOrder(b.is_recruiting);
+  // reputation: positive (0) > neutral (1) > unknown (2) > negative (3 — push to bottom by default? No — user wants neg visible.
+  // Per brief: positive desc primary key after 招生. negative still shown via red highlight.
+  const pOrder = (x) => x === 'positive' ? 0 : x === 'neutral' ? 1 : x === 'unknown' ? 2 : x === 'negative' ? 3 : 4;
+  if (pOrder(a.reputation_tag) !== pOrder(b.reputation_tag)) return pOrder(a.reputation_tag) - pOrder(b.reputation_tag);
+  // confidence
+  const cA = a.recruiting_confidence ?? 0;
+  const cB = b.recruiting_confidence ?? 0;
+  if (cA !== cB) return cB - cA;
+  return a.name_cn.localeCompare(b.name_cn, 'zh');
+}
+
+/* ===== school chip ===== */
+function SchoolChip({ school, on, count, onClick }) {
+  return (
+    <button className={`school-chip ${on ? 'on' : ''}`} onClick={onClick} type="button">
+      <span>{school.name_cn}</span>
+      <span className="school-chip-city">{count}</span>
+    </button>
+  );
+}
+
+/* ===== filter bar ===== */
+function FilterBar({ depts, filters, setFilters, total, shown }) {
+  const titleOpts = ['教授', '副教授', '助理教授', '研究员', '其他'];
+  const recruitOpts = [
+    { v: 'yes',  l: '招生', tone: 'pos' },
+    { v: 'unk',  l: '未知', tone: 'unk' },
+    { v: 'no',   l: '不招', tone: 'neg' },
+  ];
+  const repOpts = [
+    { v: 'positive', l: '正面', tone: 'pos' },
+    { v: 'neutral',  l: '中性', tone: 'neu' },
+    { v: 'negative', l: '负面', tone: 'neg' },
+    { v: 'unknown',  l: '未知', tone: 'unk' },
+  ];
+
+  const toggleArr = (key, v) => {
+    const cur = filters[key];
+    setFilters({ ...filters, [key]: cur.includes(v) ? cur.filter(x => x !== v) : [...cur, v] });
+  };
+
+  return (
+    <div className="filters">
+      <div className="fl-row">
+        <span className="fl-label">学院</span>
+        <div className="fl-chips">
+          {depts.map(d => (
+            <Chip key={d.code} on={filters.dept.includes(d.code)} onClick={() => toggleArr('dept', d.code)}>
+              {d.name_cn}
+            </Chip>
+          ))}
+          {depts.length === 0 && <span style={{ fontSize: 12, color: 'var(--fg-faint)' }}>—</span>}
+        </div>
+      </div>
+
+      <div className="fl-row">
+        <span className="fl-label">职称</span>
+        <div className="fl-chips">
+          {titleOpts.map(t => (
+            <Chip key={t} on={filters.title.includes(t)} onClick={() => toggleArr('title', t)}>
+              {t}
+            </Chip>
+          ))}
+        </div>
+      </div>
+
+      <div className="fl-row">
+        <span className="fl-label">招生</span>
+        <div className="fl-chips">
+          {recruitOpts.map(o => (
+            <Chip key={o.v} tone={o.tone} on={filters.recruit.includes(o.v)} onClick={() => toggleArr('recruit', o.v)}>
+              {o.l}
+            </Chip>
+          ))}
+        </div>
+      </div>
+
+      <div className="fl-row">
+        <span className="fl-label">风评</span>
+        <div className="fl-chips">
+          {repOpts.map(o => (
+            <Chip key={o.v} tone={o.tone} on={filters.rep.includes(o.v)} onClick={() => toggleArr('rep', o.v)}>
+              {o.l}
+            </Chip>
+          ))}
+        </div>
+      </div>
+
+      <div className="fl-row">
+        <div className="fl-search">
+          {J.search}
+          <input
+            placeholder="搜索姓名 / 简介 / 评价内容…"
+            value={filters.q}
+            onChange={e => setFilters({ ...filters, q: e.target.value })}
+          />
+        </div>
+        <Toggle on={filters.hasEmail} onClick={() => setFilters({ ...filters, hasEmail: !filters.hasEmail })}>有邮箱</Toggle>
+        <Toggle on={filters.hasSummary} onClick={() => setFilters({ ...filters, hasSummary: !filters.hasSummary })}>有投递参考</Toggle>
+        <span className="fl-stats">显示 {shown} / {total}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ===== table ===== */
+function AdvisorTable({ rows, onPick, sort, setSort }) {
+  if (rows.length === 0) {
+    return (
+      <div className="tbl-wrap">
+        <div className="empty">
+          <div className="empty-h">当前筛选下无导师</div>
+          <div>试着取消几个 chip,或清空搜索关键词</div>
+        </div>
+      </div>
+    );
+  }
+
+  const headers = [
+    { k: 'name',      label: '姓名',     cls: 'col-name',  sortable: true },
+    { k: 'dept',      label: '学院',     cls: 'col-dept' },
+    { k: 'title',     label: '职称',     cls: 'col-title' },
+    { k: 'interests', label: '研究方向', cls: 'col-interests' },
+    { k: 'email',     label: '邮箱',     cls: 'col-email' },
+    { k: 'recruit',   label: '招生',     cls: 'col-recruit', sortable: true },
+    { k: 'rep',       label: '风评',     cls: 'col-rep',     sortable: true },
+    { k: 'summary',   label: '投递参考', cls: 'col-summary' },
+    { k: 'updated',   label: '更新于',   cls: 'col-updated', sortable: true },
+    { k: 'actions',   label: '',         cls: 'col-actions' },
+  ];
+
+  const sortIcon = (k) => {
+    if (sort.key !== k) return J.arrowUpDown;
+    return sort.dir === 'desc' ? J.arrowDown : J.arrowUp;
+  };
+  const onSortClick = (k) => {
+    if (sort.key === k) setSort({ key: k, dir: sort.dir === 'desc' ? 'asc' : 'desc' });
+    else setSort({ key: k, dir: 'desc' });
+  };
+
+  return (
+    <div className="tbl-wrap">
+      <table className="tbl">
+        <colgroup>
+          {headers.map(h => <col key={h.k} className={h.cls} />)}
+        </colgroup>
+        <thead>
+          <tr>
+            {headers.map(h => (
+              <th key={h.k}
+                  className={`${h.cls} ${h.sortable ? 'sortable' : ''} ${sort.key === h.k ? 'sort-active' : ''}`}
+                  onClick={h.sortable ? () => onSortClick(h.k) : null}>
+                {h.label}
+                {h.sortable && <span className="sort-icon">{sortIcon(h.k)}</span>}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(a => {
+            const rel = formatRelTime(a.last_enriched_at);
+            const isNeg = a.reputation_tag === 'negative';
+            return (
+              <tr key={a.id} className={isNeg ? 'row-neg' : ''}>
+                <td>
+                  <div className="name-cell" onClick={() => onPick(a)}>{a.name_cn}</div>
+                  {a.name_en && <span className="name-en">{a.name_en}</span>}
+                </td>
+                <td>
+                  <div className="dept-stack">
+                    {a.departments.map(d => <span className="dept-chip" key={d.code} title={d.name_cn}>{d.name_cn}</span>)}
+                  </div>
+                </td>
+                <td>
+                  <span className={`title-cell ${a.title === '助理教授' ? 'assist' : (a.title || '').includes('教授') ? 'prof' : ''}`}>
+                    {a.title || '—'}
+                  </span>
+                </td>
+                <td>
+                  {a.research_interests.length > 0 ? (
+                    <div className="ri-stack">
+                      {a.research_interests.slice(0, 3).map((r, i) => <span className="ri-chip" key={i}>{r}</span>)}
+                      {a.research_interests.length > 3 && <span className="ri-more">+{a.research_interests.length - 3}</span>}
+                    </div>
+                  ) : <span className="ri-empty">未填</span>}
+                </td>
+                <td><EmailCell email={a.email} obfuscated={a.email_obfuscated} /></td>
+                <td><RecruitCell status={a.is_recruiting} conf={a.recruiting_confidence} /></td>
+                <td><RepCell tag={a.reputation_tag} /></td>
+                <td>
+                  {a.enriched_summary
+                    ? <div className="sum-cell" title={a.enriched_summary}>{a.enriched_summary}</div>
+                    : <span className="sum-empty">未调研</span>
+                  }
+                </td>
+                <td>
+                  <span className={`updated-cell ${!rel ? 'never' : ''}`}>{rel || '未调研'}</span>
+                </td>
+                <td>
+                  <div className="act-row">
+                    <a className="act-btn" href={a.homepage} target="_blank" rel="noreferrer" title="个人主页" onClick={e => e.stopPropagation()}>
+                      {J.ext}
+                    </a>
+                    <a className="act-btn" href={a.source_url} target="_blank" rel="noreferrer" title="原始爬取页" onClick={e => e.stopPropagation()}>
+                      {J.info}
+                    </a>
+                    <button className="act-btn" onClick={() => onPick(a)} title="展开详情抽屉" style={{ color: 'var(--fg)', fontWeight: 500, padding: '0 8px', width: 'auto' }}>
+                      详情
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ============================ DRAWER ============================ */
+function Drawer({ advisor, onClose }) {
+  const [tab, setTab] = useState('overview');
+  const [bioOpen, setBioOpen] = useState(false);
+  const [openQuota, setOpenQuota] = useState(null); // {year, degree}
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  if (!advisor) return null;
+  const a = advisor;
+
+  const tabs = [
+    { k: 'overview',  l: '概览' },
+    { k: 'matrix',    l: '招生矩阵', c: a.quotas.length },
+    { k: 'eval',      l: '评价证据', c: a.evaluations.length },
+    { k: 'trace',     l: '调研轨迹', c: (a.trace || []).length },
+  ];
+
+  const recLabel = a.is_recruiting === true ? '招生' : a.is_recruiting === false ? '不招' : '未知';
+  const recKlass = a.is_recruiting === true ? 'rec-yes' : a.is_recruiting === false ? 'rec-no' : 'rec-unk';
+  const repTag = a.reputation_tag || 'unknown';
+  const repLabel = REP_LABEL[repTag];
+  const repK = `rep-${REP_CLASS[repTag]}`;
+
+  return (
+    <>
+      <div className="dr-back" onClick={onClose}></div>
+      <aside className="dr" role="dialog" aria-modal="true">
+        <div className="dr-head">
+          <div className="dr-head-top">
+            <div className="dr-id">
+              <h2 className="dr-name">{a.name_cn}</h2>
+              <div className="dr-meta">
+                <span className="dr-meta-school">{a.school.name_cn}</span>
+                {a.departments.map(d => <span key={d.code}>· {d.name_cn}</span>)}
+                {a.title && <span>· {a.title}</span>}
+              </div>
+            </div>
+            <button className="dr-close" onClick={onClose} aria-label="关闭">{J.x}</button>
+          </div>
+          <div className="dr-badge-row">
+            <span className={`dr-big-badge ${recKlass}`}><span className="dot"></span>{recLabel}{a.recruiting_confidence != null && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.75 }}>· {(a.recruiting_confidence*100).toFixed(0)}%</span>}</span>
+            <span className={`dr-big-badge ${repK}`}><span className="dot"></span>{repLabel}</span>
+            {a.last_enriched_at && (
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-faint)', alignSelf: 'center' }}>
+                调研于 {formatRelTime(a.last_enriched_at)}
+              </span>
+            )}
+          </div>
+          <div className="dr-tabs">
+            {tabs.map(t => (
+              <span key={t.k} className={`dr-tab ${tab === t.k ? 'on' : ''}`} onClick={() => setTab(t.k)}>
+                {t.l}{t.c > 0 && <span className="dr-tab-count">{t.c}</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="dr-body">
+          {tab === 'overview' && (
+            <>
+              {a.enriched_summary ? (
+                <div className="dr-banner">
+                  <div className="dr-banner-h">{J.info} 投递参考</div>
+                  <div className="dr-banner-body">{a.enriched_summary}</div>
+                </div>
+              ) : (
+                <div className="dr-banner empty-banner">
+                  <div className="dr-banner-h">投递参考</div>
+                  <div className="dr-banner-body">该导师未调研 / 调研无结论</div>
+                </div>
+              )}
+
+              <div className="dr-sec">
+                <div className="dr-sec-h">联系方式</div>
+                <div className="dr-kv-row">
+                  <span className="k">邮箱</span>
+                  <span className="v"><EmailCell email={a.email} obfuscated={a.email_obfuscated} /></span>
+                </div>
+                <div className="dr-kv-row">
+                  <span className="k">电话</span>
+                  <span className={`v ${a.phone ? 'mono' : 'empty'}`}>{a.phone || '— 未公开'}</span>
+                </div>
+                <div className="dr-kv-row">
+                  <span className="k">个人主页</span>
+                  <span className="v"><a href={a.homepage} target="_blank" rel="noreferrer">{a.homepage} {J.ext}</a></span>
+                </div>
+                <div className="dr-kv-row">
+                  <span className="k">原始爬取页</span>
+                  <span className="v"><a href={a.source_url} target="_blank" rel="noreferrer">{a.source_url} {J.ext}</a></span>
+                </div>
+              </div>
+
+              <div className="dr-sec">
+                <div className="dr-sec-h">研究方向</div>
+                {a.research_interests.length > 0 ? (
+                  <div className="ri-stack">
+                    {a.research_interests.map((r, i) => <span className="ri-chip" key={i} style={{ fontSize: 12.5, padding: '2px 9px' }}>{r}</span>)}
+                  </div>
+                ) : <span className="ri-empty">未填</span>}
+              </div>
+
+              <div className="dr-sec">
+                <div className="dr-sec-h">个人简介</div>
+                {a.bio_text ? (
+                  bioOpen ? (
+                    <>
+                      <div className="dr-bio">{a.bio_text}</div>
+                      <span className="dr-bio-toggle" onClick={() => setBioOpen(false)}>收起</span>
+                    </>
+                  ) : (
+                    <span className="dr-bio-toggle" onClick={() => setBioOpen(true)}>展开简介({a.bio_text.length} 字) ↓</span>
+                  )
+                ) : <span className="ri-empty">未抓取到</span>}
+              </div>
+            </>
+          )}
+
+          {tab === 'matrix' && <MatrixTab quotas={a.quotas} openQuota={openQuota} setOpenQuota={setOpenQuota} />}
+
+          {tab === 'eval' && <EvalTab evaluations={a.evaluations} />}
+
+          {tab === 'trace' && <TraceTab trace={a.trace || []} />}
+        </div>
+      </aside>
+    </>
+  );
+}
+
+/* ===== Matrix tab ===== */
+function MatrixTab({ quotas, openQuota, setOpenQuota }) {
+  const years = [2024, 2025, 2026];
+  const degrees = ['PhD', 'MS', 'Postdoc'];
+  const lookup = {};
+  quotas.forEach(q => { lookup[`${q.year}-${q.degree}`] = q; });
+
+  const onCellClick = (year, degree) => {
+    const key = `${year}-${degree}`;
+    setOpenQuota(openQuota === key ? null : key);
+  };
+
+  const renderCell = (q) => {
+    if (!q) return <span className="cell-empty">—</span>;
+    const cnt = q.count == null ? '?' : q.count === 0 ? '0' : `${q.count}`;
+    return (
+      <span className="cell-quota">
+        <span className="quota-count">{cnt}</span>
+        {q.confidence != null && <span className="quota-conf">conf {(q.confidence*100).toFixed(0)}%</span>}
+      </span>
+    );
+  };
+
+  if (quotas.length === 0) {
+    return <div className="ev-empty">该导师暂无招生矩阵数据(quota_info 表为空)</div>;
+  }
+
+  return (
+    <>
+      <table className="matrix">
+        <thead>
+          <tr>
+            <th>学位</th>
+            {years.map(y => <th key={y}>{y}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {degrees.map(deg => (
+            <tr key={deg}>
+              <td>{deg}</td>
+              {years.map(y => {
+                const q = lookup[`${y}-${deg}`];
+                const key = `${y}-${deg}`;
+                return (
+                  <td key={y}>
+                    <span onClick={q ? () => onCellClick(y, deg) : null}>
+                      {renderCell(q)}
+                    </span>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {openQuota && lookup[openQuota] && (
+        <div className="quota-popout">
+          <div className="quota-popout-meta">
+            <span>{openQuota.replace('-', ' · ')}</span>
+            <span>conf {(lookup[openQuota].confidence*100).toFixed(0)}%</span>
+            <a href={lookup[openQuota].source_url} target="_blank" rel="noreferrer">原始链接 {J.ext}</a>
+          </div>
+          <div>{lookup[openQuota].raw_text}</div>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ===== Eval tab ===== */
+function EvalTab({ evaluations }) {
+  const groups = {};
+  evaluations.forEach(e => { (groups[e.source] = groups[e.source] || []).push(e); });
+  const sourceKeys = Object.keys(groups);
+
+  if (sourceKeys.length === 0) {
+    return (
+      <>
+        <div className="ev-warn">
+          {J.alert}
+          <span>以下为网络公开评论,仅供个人参考,请结合多渠道判断。</span>
+        </div>
+        <div className="ev-empty">尚未抓到网络评价</div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="ev-warn">
+        {J.alert}
+        <span>以下为网络公开评论,仅供个人参考,请结合多渠道判断。</span>
+      </div>
+      {sourceKeys.map(src => (
+        <div className="ev-group" key={src}>
+          <div className="ev-group-h">
+            <span className="ev-source">{src}</span>
+            <span className="ev-source-cnt">{groups[src].length} 条</span>
+          </div>
+          {groups[src].map((ev, i) => (
+            <EvalCard key={i} ev={ev} />
+          ))}
+        </div>
+      ))}
+    </>
+  );
+}
+
+function EvalCard({ ev }) {
+  const [expanded, setExpanded] = useState(false);
+  const long = ev.content.length > 240;
+  const display = expanded || !long ? ev.content : ev.content.slice(0, 240) + '…';
+  return (
+    <div className="ev-card">
+      <div>{display}</div>
+      {long && (
+        <span className="dr-bio-toggle" onClick={() => setExpanded(e => !e)}>
+          {expanded ? '收起' : `展开全文(${ev.content.length} 字)`}
+        </span>
+      )}
+      <div className="ev-card-foot">
+        {ev.posted_at && <span>{ev.posted_at}</span>}
+        <span style={{ marginLeft: 'auto' }}>
+          <a href={ev.source_url} target="_blank" rel="noreferrer">原文 {J.ext}</a>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/* ===== Trace tab ===== */
+function TraceTab({ trace }) {
+  if (trace.length === 0) {
+    return <div className="trace-empty">该导师未启动 agent 调研,或调研日志被清理</div>;
+  }
+  return (
+    <div className="trace-line">
+      {trace.map((t, i) => {
+        const isFinal = t.kind === 'final';
+        const num = isFinal ? 'final' : `iter ${i + 1}`;
+        return (
+          <div key={i} className={`trace-row ${isFinal ? 'final' : ''}`}>
+            <span className="trace-num">{num}</span>
+            <span className="trace-kind">{t.label}</span>
+            <span className="trace-detail">{t.detail}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ============================ APP ============================ */
+function App() {
+  const [user] = useState(() => {
+    let role = 'member';
+    try { role = sessionStorage.getItem('labnotes_role') || 'member'; } catch (_) {}
+    return role === 'guest'
+      ? { role: 'guest', name: 'Guest', initials: 'G' }
+      : { role: 'member', name: 'Zilun', initials: 'ZL' };
+  });
+
+  const [group, setGroup] = useState('top2');
+  const [school, setSchool] = useState('tsinghua');
+  const [picked, setPicked] = useState(null);
+
+  // filters reset when school changes
+  const blankFilters = {
+    dept: [], title: [], recruit: [], rep: [],
+    q: '', hasEmail: true, hasSummary: false,
+  };
+  const [filters, setFilters] = useState(blankFilters);
+  const [sort, setSort] = useState({ key: 'default', dir: 'desc' });
+
+  useEffect(() => {
+    setFilters(blankFilters);
+    setSort({ key: 'default', dir: 'desc' });
+  }, [school]);
+
+  useEffect(() => {
+    // when switching group, snap to first school in group
+    const sg = SCHOOL_GROUPS.find(g => g.code === group);
+    if (sg && !sg.schools.includes(school)) setSchool(sg.schools[0]);
+  }, [group]);
+
+  const schoolAdvisors = useMemo(() => ADVISORS.filter(a => a.school.code === school), [school]);
+  const depts = useMemo(() => schoolDepts(school), [school]);
+
+  // counts per group's schools
+  const schoolCounts = useMemo(() => {
+    const c = {};
+    Object.keys(SCHOOLS).forEach(k => { c[k] = ADVISORS.filter(a => a.school.code === k).length; });
+    return c;
+  }, []);
+
+  // apply filters
+  const filtered = useMemo(() => {
+    return schoolAdvisors.filter(a => {
+      if (filters.dept.length && !a.departments.some(d => filters.dept.includes(d.code))) return false;
+      if (filters.title.length) {
+        const t = a.title || '其他';
+        const matched = filters.title.some(tf => tf === '其他' ? !['教授','副教授','助理教授','研究员'].includes(t) : t === tf);
+        if (!matched) return false;
+      }
+      if (filters.recruit.length) {
+        const r = a.is_recruiting === true ? 'yes' : a.is_recruiting === false ? 'no' : 'unk';
+        if (!filters.recruit.includes(r)) return false;
+      }
+      if (filters.rep.length) {
+        const r = a.reputation_tag || 'unknown';
+        if (!filters.rep.includes(r)) return false;
+      }
+      if (filters.hasEmail && !a.email) return false;
+      if (filters.hasSummary && !a.enriched_summary) return false;
+      if (filters.q.trim()) {
+        const q = filters.q.trim().toLowerCase();
+        const hay = [
+          a.name_cn, a.bio_text || '',
+          (a.evaluations || []).map(e => e.content).join(' '),
+          (a.research_interests || []).join(' '),
+        ].join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [schoolAdvisors, filters]);
+
+  // sort
+  const sorted = useMemo(() => {
+    const arr = [...filtered];
+    if (sort.key === 'default') {
+      arr.sort(defaultSort);
+    } else {
+      const flip = sort.dir === 'desc' ? -1 : 1;
+      arr.sort((a, b) => {
+        if (sort.key === 'name')    return a.name_cn.localeCompare(b.name_cn, 'zh') * (sort.dir === 'desc' ? -1 : 1);
+        if (sort.key === 'recruit') {
+          const rO = (x) => x.is_recruiting === true ? 0 : x.is_recruiting == null ? 1 : 2;
+          return (rO(a) - rO(b)) * flip * -1;
+        }
+        if (sort.key === 'rep') {
+          const pO = (x) => x.reputation_tag === 'positive' ? 0 : x.reputation_tag === 'neutral' ? 1 : x.reputation_tag === 'unknown' ? 2 : x.reputation_tag === 'negative' ? 3 : 4;
+          return (pO(a) - pO(b)) * flip * -1;
+        }
+        if (sort.key === 'updated') {
+          const dA = a.last_enriched_at ? new Date(a.last_enriched_at).getTime() : 0;
+          const dB = b.last_enriched_at ? new Date(b.last_enriched_at).getTime() : 0;
+          return (dB - dA) * (sort.dir === 'desc' ? 1 : -1);
+        }
+        return 0;
+      });
+    }
+    return arr;
+  }, [filtered, sort]);
+
+  // top stats for header
+  const allCount = ADVISORS.length;
+  const schoolRecruitingPos = schoolAdvisors.filter(a => a.is_recruiting === true).length;
+  const schoolNeg = schoolAdvisors.filter(a => a.reputation_tag === 'negative').length;
+
+  return (
+    <>
+      <TopNav user={user} />
+
+      <main className="page-school">
+        <div className="page-h">
+          <h1>导师投递参考 · 中国顶尖 CS/AI 高校</h1>
+          <div className="sub">
+            7 校 · <strong>{allCount}</strong> 位导师 · 当前校 <strong>{schoolAdvisors.length}</strong> 位 ·
+            招生 <strong style={{ color: 'var(--cat-tools)' }}>{schoolRecruitingPos}</strong> · 风评负面 <strong style={{ color: 'var(--cat-research)' }}>{schoolNeg}</strong>
+          </div>
+        </div>
+
+        {/* group tabs */}
+        <div className="grp-tabs">
+          {SCHOOL_GROUPS.map(g => {
+            const n = g.schools.reduce((s, k) => s + (schoolCounts[k] || 0), 0);
+            return (
+              <span key={g.code} className={`grp-tab ${group === g.code ? 'on' : ''}`} onClick={() => setGroup(g.code)}>
+                {g.label}<span className="grp-count">{n}</span>
+              </span>
+            );
+          })}
+        </div>
+
+        {/* school chips */}
+        <div className="school-row">
+          {SCHOOL_GROUPS.find(g => g.code === group).schools.map(sk => (
+            <SchoolChip
+              key={sk}
+              school={SCHOOLS[sk]}
+              count={schoolCounts[sk]}
+              on={school === sk}
+              onClick={() => setSchool(sk)}
+            />
+          ))}
+        </div>
+
+        {/* filters */}
+        <FilterBar
+          depts={depts}
+          filters={filters}
+          setFilters={setFilters}
+          total={schoolAdvisors.length}
+          shown={sorted.length}
+        />
+
+        {/* table */}
+        <AdvisorTable rows={sorted} onPick={setPicked} sort={sort} setSort={setSort} />
+      </main>
+
+      <footer className="footer">
+        LabNotes · 数据由 supervisor-claw agent 抓取 · 仅供个人投递参考,请结合多渠道判断
+      </footer>
+
+      {picked && <Drawer advisor={picked} onClose={() => setPicked(null)} />}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(<App />);
+</script>
+
+</body>
+</html>
