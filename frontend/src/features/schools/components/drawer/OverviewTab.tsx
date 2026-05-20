@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ExternalLink, Info } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import type { Advisor } from '../../types'
+import { formatPhone } from '../../lib/format-phone'
 import { EmailCell } from '../cells/EmailCell'
 
 interface OverviewTabProps {
@@ -40,7 +41,9 @@ export function OverviewTab({ advisor: a }: OverviewTabProps) {
         </Kv>
         <Kv k="电话">
           {a.phone ? (
-            <span className="font-mono text-[12px] text-text">{a.phone}</span>
+            <span className="font-mono text-[13px] tracking-[0.01em] text-text">
+              {formatPhone(a.phone)}
+            </span>
           ) : (
             <span className="italic text-text-faint">— 未公开</span>
           )}
