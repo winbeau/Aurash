@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     # is undiscoverable to anyone but the admin.
     admin_sid: str = "20241401231"
 
+    # Directory holding claw's schools export (manifest.json + schools.sqlite).
+    # Resolved relative to backend/ (i.e. Path(app/main.py).parent.parent).
+    # Override with an absolute path or `SCHOOLS_DATA_DIR=...` env var. The
+    # file is attached read-only by app/db/schools_engine.py. Missing files
+    # don't block boot — /schools/* simply returns 503 until present.
+    schools_data_dir: str = "data/schools"
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [s.strip() for s in self.cors_origins.split(",") if s.strip()]

@@ -32,3 +32,17 @@ class CamelModel(BaseModel):
         populate_by_name=True,
         from_attributes=True,
     )
+
+
+class SnakeModel(BaseModel):
+    """Base schema that emits snake_case JSON verbatim.
+
+    Used only by the /schools/* routes — that domain's wire contract is
+    snake_case because the underlying claw export already is, and the
+    frontend `features/schools/types.ts` mirrors it field-for-field.
+    """
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        from_attributes=True,
+    )

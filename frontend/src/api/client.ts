@@ -36,9 +36,24 @@ export type MockReq = {
 export type MockHandler = (req: MockReq) => Promise<unknown>
 
 const mockHandlers = new Map<string, MockHandler>()
+type MockPattern = { method: HttpMethod; regex: RegExp; handler: MockHandler }
+const mockPatterns: MockPattern[] = []
 
 export function registerMock(method: HttpMethod, path: string, handler: MockHandler): void {
+  if (path.includes(':')) {
+    // `:name` → match any segment without `/`. Anchor at both ends.
+    const pattern = path.replace(/:[A-Za-z_]+/g, '[^/]+')
+    const regex = new RegExp(`^${pattern}$`)
+    mockPatterns.push({ method, regex, handler })
+    return
+  }
   mockHandlers.set(`${method} ${path}`, handler)
+}
+
+function findMockHandler(method: HttpMethod, path: string): MockHandler | undefined {
+  const exact = mockHandlers.get(`${method} ${path}`)
+  if (exact) return exact
+  return mockPatterns.find((p) => p.method === method && p.regex.test(path))?.handler
 }
 
 export class ApiError extends Error {
@@ -52,12 +67,19 @@ export class ApiError extends Error {
   }
 }
 
+export type QueryValue =
+  | string
+  | number
+  | boolean
+  | ReadonlyArray<string | number | boolean>
+  | undefined
+
 type RequestOpts<T> = {
   method: HttpMethod
   path: string
   schema: ZodType<T>
   body?: unknown
-  query?: Record<string, string | number | boolean | undefined>
+  query?: Record<string, QueryValue>
   headers?: Record<string, string>
 }
 
@@ -65,14 +87,20 @@ export async function request<T>(opts: RequestOpts<T>): Promise<T> {
   const queryParams = new URLSearchParams()
   if (opts.query) {
     for (const [k, v] of Object.entries(opts.query)) {
-      if (v !== undefined) queryParams.set(k, String(v))
+      if (v === undefined) continue
+      // Arrays emit repeated keys (FastAPI's default list[str] decoding).
+      if (Array.isArray(v)) {
+        for (const item of v) queryParams.append(k, String(item))
+      } else {
+        queryParams.set(k, String(v))
+      }
     }
   }
 
   let raw: unknown
 
   if (useMock) {
-    const handler = mockHandlers.get(`${opts.method} ${opts.path}`)
+    const handler = findMockHandler(opts.method, opts.path)
     if (!handler) {
       throw new ApiError(
         `No mock handler registered for ${opts.method} ${opts.path}`,
