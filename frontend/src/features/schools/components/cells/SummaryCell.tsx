@@ -13,7 +13,7 @@ export function SummaryCell({ text }: SummaryCellProps) {
       <Tooltip>
         <TooltipTrigger asChild>
           <div
-            className="schools-summary-cell group cursor-help font-serif text-[14px] leading-[1.55] text-text"
+            className="schools-summary-cell cursor-help font-serif text-[14px] leading-[1.55] text-text"
             style={{
               display: '-webkit-box',
               WebkitLineClamp: 2,
@@ -21,9 +21,7 @@ export function SummaryCell({ text }: SummaryCellProps) {
               overflow: 'hidden',
             }}
           >
-            <span className="rounded-[2px] underline decoration-text-faint/0 decoration-dashed underline-offset-[3px] transition-[text-decoration-color] duration-150 group-hover:decoration-text-muted/70">
-              {text}
-            </span>
+            {text}
           </div>
         </TooltipTrigger>
         <TooltipContent
