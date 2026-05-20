@@ -39,7 +39,7 @@ export function AdvisorTable({ rows, onPick, sort, setSort }: AdvisorTableProps)
   if (rows.length === 0) {
     return (
       <div className="overflow-hidden rounded-lg border border-border bg-bg">
-        <div className="px-5 py-16 text-center font-sans text-[13px] text-text-faint">
+        <div className="px-5 py-16 text-center font-sans text-[14px] text-text-faint">
           <div className="mb-1.5 font-serif text-[18px] font-semibold text-text-muted">
             当前筛选下无导师
           </div>
@@ -69,7 +69,7 @@ export function AdvisorTable({ rows, onPick, sort, setSort }: AdvisorTableProps)
 
   return (
     <div className="schools-tbl-wrap overflow-x-auto overflow-y-visible rounded-lg border border-border bg-bg">
-      <table className="w-full min-w-[1412px] table-fixed border-separate border-spacing-0 font-sans text-[13px]">
+      <table className="w-full min-w-[1412px] table-fixed border-separate border-spacing-0 font-sans text-[14px]">
         <colgroup>
           {COLS.map((c) => (
             <col key={c.k} style={{ width: c.width }} />
@@ -84,7 +84,7 @@ export function AdvisorTable({ rows, onPick, sort, setSort }: AdvisorTableProps)
                   key={c.k}
                   onClick={c.sortable ? () => onSortClick(c.k as SortKey) : undefined}
                   className={cn(
-                    'select-none whitespace-nowrap border-b border-border bg-bg-subtle px-3 py-2.5 text-left text-[11.5px] font-semibold uppercase tracking-[0.05em]',
+                    'select-none whitespace-nowrap border-b border-border bg-bg-subtle px-3 py-2.5 text-left text-[12px] font-semibold uppercase tracking-[0.05em]',
                     c.sortable && 'cursor-pointer transition-colors hover:text-text',
                     active ? 'text-text' : 'text-text-muted',
                   )}
@@ -118,12 +118,12 @@ export function AdvisorTable({ rows, onPick, sort, setSort }: AdvisorTableProps)
                 <Td>
                   <div
                     onClick={() => onPick(a)}
-                    className="cursor-pointer font-serif text-[14.5px] font-semibold leading-[1.3] tracking-[-0.005em] text-text hover:text-link"
+                    className="cursor-pointer font-serif text-[15.5px] font-semibold leading-[1.35] tracking-[-0.005em] text-text hover:text-link"
                   >
                     {a.name_cn}
                   </div>
                   {a.name_en && (
-                    <span className="mt-px block font-sans text-[11px] font-normal text-text-faint">
+                    <span className="mt-px block font-sans text-[12px] font-normal text-text-faint">
                       {a.name_en}
                     </span>
                   )}
@@ -134,7 +134,7 @@ export function AdvisorTable({ rows, onPick, sort, setSort }: AdvisorTableProps)
                       <span
                         key={d.code}
                         title={d.name_cn}
-                        className="inline-flex max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-[3px] bg-bg-subtle px-1.5 py-px font-sans text-[11px] leading-[1.55] text-text-muted"
+                        className="inline-flex max-w-full overflow-hidden text-ellipsis whitespace-nowrap rounded-[3px] bg-bg-subtle px-1.5 py-0.5 font-sans text-[12px] leading-[1.55] text-text-muted"
                       >
                         {d.name_cn}
                       </span>
@@ -144,7 +144,7 @@ export function AdvisorTable({ rows, onPick, sort, setSort }: AdvisorTableProps)
                 <Td>
                   <span
                     className={cn(
-                      'whitespace-nowrap text-[12.5px]',
+                      'whitespace-nowrap text-[13.5px]',
                       a.title === '助理教授'
                         ? 'text-cat-tools'
                         : (a.title || '').includes('教授')
@@ -161,19 +161,19 @@ export function AdvisorTable({ rows, onPick, sort, setSort }: AdvisorTableProps)
                       {a.research_interests.slice(0, 3).map((r, i) => (
                         <span
                           key={i}
-                          className="inline-flex rounded-[3px] bg-bg-subtle px-[7px] py-px font-sans text-[11.5px] leading-[1.6] text-text-muted"
+                          className="inline-flex rounded-[3px] bg-bg-subtle px-[7px] py-0.5 font-sans text-[12.5px] leading-[1.6] text-text-muted"
                         >
                           {r}
                         </span>
                       ))}
                       {a.research_interests.length > 3 && (
-                        <span className="font-mono text-[11px] text-text-faint">
+                        <span className="font-mono text-[12px] text-text-faint">
                           +{a.research_interests.length - 3}
                         </span>
                       )}
                     </div>
                   ) : (
-                    <span className="font-sans text-[11.5px] italic text-text-faint">未填</span>
+                    <span className="font-sans text-[12.5px] italic text-text-faint">未填</span>
                   )}
                 </Td>
                 <Td>
@@ -191,7 +191,7 @@ export function AdvisorTable({ rows, onPick, sort, setSort }: AdvisorTableProps)
                 <Td>
                   <span
                     className={cn(
-                      'whitespace-nowrap text-[11.5px]',
+                      'whitespace-nowrap text-[12.5px]',
                       rel ? 'font-mono text-text-muted' : 'font-sans italic text-text-faint',
                     )}
                   >
@@ -241,7 +241,7 @@ export function AdvisorTable({ rows, onPick, sort, setSort }: AdvisorTableProps)
 
 function Td({ children }: { children: React.ReactNode }) {
   return (
-    <td className="schools-tbl-cell border-b border-border bg-bg px-3 py-3 align-middle text-text transition-colors">
+    <td className="schools-tbl-cell border-b border-border bg-bg px-3 py-3.5 align-middle text-text transition-colors">
       {children}
     </td>
   )

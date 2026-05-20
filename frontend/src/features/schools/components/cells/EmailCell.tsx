@@ -12,7 +12,7 @@ export function EmailCell({ email, obfuscated }: EmailCellProps) {
 
   if (!email) {
     return (
-      <span className="font-sans text-[11.5px] italic text-text-faint">
+      <span className="font-sans text-[12.5px] italic text-text-faint">
         {obfuscated ? '— 邮箱混淆' : '— 未公开'}
       </span>
     )
@@ -31,7 +31,7 @@ export function EmailCell({ email, obfuscated }: EmailCellProps) {
       onClick={onClick}
       title={`复制 ${email}`}
       className={cn(
-        'inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-[4px] px-[7px] py-[3px] font-mono text-[11.5px] transition-colors',
+        'inline-flex max-w-full cursor-pointer items-center gap-1.5 rounded-[4px] px-[7px] py-[3px] font-mono text-[12.5px] transition-colors',
         copied ? 'bg-tag-tools text-cat-tools' : 'bg-bg-subtle text-text hover:bg-bg-hover',
       )}
     >

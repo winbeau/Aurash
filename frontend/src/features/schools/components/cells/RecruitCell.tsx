@@ -16,7 +16,7 @@ export function RecruitCell({ status }: RecruitCellProps) {
   return (
     <span
       className={cn(
-        'inline-flex w-fit items-center gap-[5px] rounded-[4px] px-2 py-px font-sans text-[11.5px] font-medium leading-[1.6]',
+        'inline-flex w-fit items-center gap-[5px] rounded-[4px] px-2 py-0.5 font-sans text-[12.5px] font-medium leading-[1.6]',
         klass,
       )}
     >
