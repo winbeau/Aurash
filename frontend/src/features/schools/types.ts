@@ -1,5 +1,14 @@
-export type SchoolCode = 'tsinghua' | 'pku' | 'fudan' | 'sjtu' | 'nju' | 'zju' | 'ustc'
-export type GroupCode = 'top2' | 'hwu'
+export type SchoolCode =
+  | 'tsinghua'
+  | 'pku'
+  | 'fudan'
+  | 'sjtu'
+  | 'nju'
+  | 'zju'
+  | 'ustc'
+  | 'hit'
+  | 'xjtu'
+export type GroupCode = 'top2' | 'hwu' | 'c9' | 'all'
 export type Reputation = 'positive' | 'neutral' | 'negative' | 'unknown'
 export type Degree = 'PhD' | 'MS' | 'Postdoc'
 

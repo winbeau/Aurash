@@ -88,6 +88,8 @@ export function SchoolsPage() {
       nju: 0,
       zju: 0,
       ustc: 0,
+      hit: 0,
+      xjtu: 0,
     }
     metaQuery.data?.schools.forEach((s) => {
       if (s.code in c) c[s.code as SchoolCode] = s.count

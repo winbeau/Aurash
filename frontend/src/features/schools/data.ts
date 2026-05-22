@@ -10,9 +10,26 @@ import type {
   TraceItem,
 } from './types'
 
+// C9 顺序按联盟成立公告原序：清华、北大、复旦、上交、南大、浙大、中科大、哈工大、西安交大。
+const C9_SCHOOLS: SchoolCode[] = [
+  'tsinghua',
+  'pku',
+  'fudan',
+  'sjtu',
+  'nju',
+  'zju',
+  'ustc',
+  'hit',
+  'xjtu',
+]
+
 export const SCHOOL_GROUPS: SchoolGroup[] = [
   { code: 'top2', label: 'Top2', schools: ['tsinghua', 'pku'] },
   { code: 'hwu', label: '华五', schools: ['fudan', 'sjtu', 'nju', 'zju', 'ustc'] },
+  { code: 'c9', label: 'C9 高校', schools: C9_SCHOOLS },
+  // "高校信息" 是兜底 group——包含 SCHOOLS 全集。未来加入非 C9 学校时只要
+  // 进 SCHOOLS，就自动在这里露面（不会落到任何 advisor 之外）。
+  { code: 'all', label: '高校信息', schools: C9_SCHOOLS },
 ]
 
 export const SCHOOLS: Record<SchoolCode, School> = {
@@ -23,6 +40,8 @@ export const SCHOOLS: Record<SchoolCode, School> = {
   nju: { code: 'nju', name_cn: '南京大学', short: '南大', city: '南京' },
   zju: { code: 'zju', name_cn: '浙江大学', short: '浙大', city: '杭州' },
   ustc: { code: 'ustc', name_cn: '中国科学技术大学', short: '中科大', city: '合肥' },
+  hit: { code: 'hit', name_cn: '哈尔滨工业大学', short: '哈工大', city: '哈尔滨' },
+  xjtu: { code: 'xjtu', name_cn: '西安交通大学', short: '西交', city: '西安' },
 }
 
 const S = (code: SchoolCode) => ({ code, name_cn: SCHOOLS[code].name_cn })
