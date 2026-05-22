@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { C9_SCHOOLS, SCHOOLS, SCHOOL_GROUPS } from './data'
+import { C9_SCHOOLS, SCHOOL_GROUPS } from './data'
 
 const C9_SET = new Set<SchoolCode>(C9_SCHOOLS)
 import {
@@ -61,12 +61,14 @@ export function SchoolsPage() {
   })
 
   // 高校信息 group：从 meta 取**非 C9** 的实际收录学校，与 C9 tab 互补。
+  // 不要求 code 已在前端 SCHOOLS 登记——name_cn 走 meta fallback，
+  // 这样 sqlite 加新校时前端零改动。
   const dynamicAllSchools = useMemo<SchoolCode[]>(() => {
     const items = metaQuery.data?.schools ?? []
     return items
-      .filter((s) => s.code in SCHOOLS && s.count > 0 && !C9_SET.has(s.code as SchoolCode))
+      .filter((s) => s.count > 0 && !C9_SET.has(s.code))
       .sort((a, b) => b.count - a.count)
-      .map((s) => s.code as SchoolCode)
+      .map((s) => s.code)
   }, [metaQuery.data])
 
   // Group 切换时把 school 拉到组内第一个 chip。
@@ -94,23 +96,22 @@ export function SchoolsPage() {
     enabled: pickedId != null,
   })
 
-  // School chip counts from /schools/meta (falls back to 0 while loading).
-  const schoolCounts = useMemo(() => {
-    const c: Record<SchoolCode, number> = {
-      tsinghua: 0,
-      pku: 0,
-      fudan: 0,
-      sjtu: 0,
-      nju: 0,
-      zju: 0,
-      ustc: 0,
-      hit: 0,
-      xjtu: 0,
-    }
+  // School chip counts + canonical names from /schools/meta (both fall
+  // back to empty / 0 while the meta query is loading).
+  const schoolCounts = useMemo<Record<string, number>>(() => {
+    const c: Record<string, number> = {}
     metaQuery.data?.schools.forEach((s) => {
-      if (s.code in c) c[s.code as SchoolCode] = s.count
+      c[s.code] = s.count
     })
     return c
+  }, [metaQuery.data])
+
+  const schoolNames = useMemo<Record<string, string>>(() => {
+    const m: Record<string, string> = {}
+    metaQuery.data?.schools.forEach((s) => {
+      m[s.code] = s.name_cn
+    })
+    return m
   }, [metaQuery.data])
 
   // Departments for the current school come from /schools/meta.
@@ -126,6 +127,7 @@ export function SchoolsPage() {
     () => metaQuery.data?.schools.reduce((sum, s) => sum + s.count, 0) ?? 0,
     [metaQuery.data],
   )
+  const schoolNum = metaQuery.data?.schools.length ?? 0
   const schoolTotal = schoolCounts[school] ?? 0
   const recruitingShown = rows.filter((a) => a.is_recruiting === true).length
   const negShown = rows.filter((a) => a.reputation_tag === 'negative').length
@@ -137,8 +139,8 @@ export function SchoolsPage() {
           导师投递参考 · 中国顶尖 CS/AI 高校
         </h1>
         <div className="font-sans text-[13px] text-text-muted">
-          7 校 · <strong className="font-semibold text-text">{allCount}</strong> 位导师 · 当前校{' '}
-          <strong className="font-semibold text-text">{schoolTotal}</strong> 位 · 招生{' '}
+          {schoolNum} 校 · <strong className="font-semibold text-text">{allCount}</strong> 位导师 ·
+          当前校 <strong className="font-semibold text-text">{schoolTotal}</strong> 位 · 招生{' '}
           <strong className="font-semibold text-cat-tools">{recruitingShown}</strong> · 风评负面{' '}
           <strong className="font-semibold text-cat-research">{negShown}</strong>
         </div>
@@ -148,6 +150,7 @@ export function SchoolsPage() {
         group={group}
         school={school}
         schoolCounts={schoolCounts}
+        schoolNames={schoolNames}
         dynamicAllSchools={dynamicAllSchools}
         onGroup={setGroup}
         onSchool={setSchool}

@@ -1,3 +1,8 @@
+/**
+ * 已知 C9 + 常见 985 的 code（保留 IDE 智能补全），同时用 `(string & {})`
+ * 兜底任意未登记 code——sqlite 里新加学校（如 shanghaitech / xidian）
+ * 无需先在前端登记 union 也能跑通。
+ */
 export type SchoolCode =
   | 'tsinghua'
   | 'pku'
@@ -8,6 +13,7 @@ export type SchoolCode =
   | 'ustc'
   | 'hit'
   | 'xjtu'
+  | (string & {})
 export type GroupCode = 'top2' | 'hwu' | 'c9' | 'all'
 export type Reputation = 'positive' | 'neutral' | 'negative' | 'unknown'
 export type Degree = 'PhD' | 'MS' | 'Postdoc'

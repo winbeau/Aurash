@@ -102,6 +102,7 @@ registerMock('GET', '/schools/meta', async () => {
   const schools = (Object.keys(SCHOOLS) as Array<keyof typeof SCHOOLS>)
     .map((code) => {
       const meta = SCHOOLS[code]
+      if (!meta) return null
       const dmap = deptIndex.get(code) ?? new Map()
       const departments = Array.from(dmap.entries()).map(([c, name]) => ({
         code: c,
@@ -115,7 +116,7 @@ registerMock('GET', '/schools/meta', async () => {
         departments,
       }
     })
-    .filter((s) => s.count > 0 || true) // keep all 7 schools so chip layout is stable
+    .filter((s): s is NonNullable<typeof s> => s !== null)
 
   // Distinct titles sorted by frequency (mirrors backend).
   const titleCount = new Map<string, number>()

@@ -33,7 +33,7 @@ export const SCHOOL_GROUPS: SchoolGroup[] = [
   { code: 'all', label: '高校信息', schools: [] },
 ]
 
-export const SCHOOLS: Record<SchoolCode, School> = {
+export const SCHOOLS: Partial<Record<SchoolCode, School>> = {
   tsinghua: { code: 'tsinghua', name_cn: '清华大学', short: '清华', city: '北京' },
   pku: { code: 'pku', name_cn: '北京大学', short: '北大', city: '北京' },
   fudan: { code: 'fudan', name_cn: '复旦大学', short: '复旦', city: '上海' },
@@ -45,7 +45,7 @@ export const SCHOOLS: Record<SchoolCode, School> = {
   xjtu: { code: 'xjtu', name_cn: '西安交通大学', short: '西交', city: '西安' },
 }
 
-const S = (code: SchoolCode) => ({ code, name_cn: SCHOOLS[code].name_cn })
+const S = (code: SchoolCode) => ({ code, name_cn: SCHOOLS[code]?.name_cn ?? code })
 const D = (code: string, name: string): Department => ({ code, name_cn: name })
 const Q = (
   year: number | null,

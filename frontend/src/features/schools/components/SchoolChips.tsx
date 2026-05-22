@@ -5,7 +5,10 @@ import type { GroupCode, SchoolCode } from '../types'
 interface SchoolChipsProps {
   group: GroupCode
   school: SchoolCode
-  schoolCounts: Record<SchoolCode, number>
+  schoolCounts: Record<string, number>
+  /** code → name_cn from /schools/meta; used as fallback when a school
+   *  hasn't been registered in the static `SCHOOLS` map yet. */
+  schoolNames: Record<string, string>
   /**
    * Dynamic chip list for the "高校信息" (`all`) tab — schools actually
    * present in the current dataset, sorted descending by count. For
@@ -21,6 +24,7 @@ export function SchoolChips({
   group,
   school,
   schoolCounts,
+  schoolNames,
   dynamicAllSchools,
   onGroup,
   onSchool,
@@ -60,8 +64,7 @@ export function SchoolChips({
           </div>
         )}
         {chipSchools.map((sk) => {
-          const s = SCHOOLS[sk]
-          if (!s) return null
+          const nameCn = SCHOOLS[sk]?.name_cn ?? schoolNames[sk] ?? sk
           const on = school === sk
           return (
             <button
@@ -75,8 +78,8 @@ export function SchoolChips({
                   : 'border-border bg-bg text-text hover:bg-bg-subtle',
               )}
             >
-              <span>{s.name_cn}</span>
-              <span className="font-mono text-[11px] opacity-55">{schoolCounts[sk]}</span>
+              <span>{nameCn}</span>
+              <span className="font-mono text-[11px] opacity-55">{schoolCounts[sk] ?? 0}</span>
             </button>
           )
         })}
