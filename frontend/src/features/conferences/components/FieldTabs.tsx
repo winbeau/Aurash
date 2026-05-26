@@ -12,7 +12,7 @@ interface FieldTabsProps {
 // 圆角矩形按钮（可多行换行），替代原先横向滚动的下划线 tab 条。
 const pill = (on: boolean) =>
   cn(
-    'inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 font-sans text-[13px] font-medium leading-none transition-colors duration-75',
+    'inline-flex items-center gap-1.5 rounded-[5px] border px-3 py-1.5 font-sans text-[14.5px] font-medium leading-none transition-colors duration-75',
     on
       ? 'border-text bg-text text-white'
       : 'border-border bg-bg text-text-muted hover:border-border-strong hover:text-text',
@@ -20,7 +20,7 @@ const pill = (on: boolean) =>
 
 export function FieldTabs({ value, onChange, countsByField, total }: FieldTabsProps) {
   const count = (n: number, on: boolean) => (
-    <span className={cn('font-mono text-[11px]', on ? 'text-white/65' : 'text-text-faint')}>
+    <span className={cn('font-mono text-[12px]', on ? 'text-white/65' : 'text-text-faint')}>
       {n}
     </span>
   )
