@@ -9,6 +9,7 @@ and use Postgres ARRAY overlap for tags.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from datetime import datetime, timedelta, timezone
 from typing import cast
 
 from sqlalchemy import func, or_, select
@@ -114,6 +115,10 @@ async def list_notes(
     user_sid: str | None = None,
 ) -> PaginatedNotes:
     stmt = select(Note).options(selectinload(Note.author))
+    if query.sort == "hot":
+        now = datetime.now(timezone.utc)
+        week_start = now - timedelta(days=now.weekday(), hours=now.hour, minutes=now.minute, seconds=now.second, microseconds=now.microsecond)
+        stmt = stmt.where(Note.created_at >= week_start)
     if query.cat:
         stmt = stmt.where(Note.category == query.cat)
     if query.q:
