@@ -142,18 +142,26 @@ export function AdvisorTable({ rows, onPick, sort, setSort }: AdvisorTableProps)
                   </div>
                 </Td>
                 <Td>
-                  <span
-                    className={cn(
-                      'whitespace-nowrap text-[13.5px]',
-                      a.title === '助理教授'
-                        ? 'text-cat-tools'
-                        : (a.title || '').includes('教授')
-                          ? 'font-medium text-text'
-                          : 'text-text',
-                    )}
+                  <div
+                    className="overflow-hidden"
+                    style={{
+                      maskImage: 'linear-gradient(to right, #000 calc(100% - 12px), transparent)',
+                      WebkitMaskImage: 'linear-gradient(to right, #000 calc(100% - 12px), transparent)',
+                    }}
                   >
-                    {a.title || '—'}
-                  </span>
+                    <span
+                      className={cn(
+                        'whitespace-nowrap text-[13.5px]',
+                        a.title === '助理教授'
+                          ? 'text-cat-tools'
+                          : (a.title || '').includes('教授')
+                            ? 'font-medium text-text'
+                            : 'text-text',
+                      )}
+                    >
+                      {a.title || '—'}
+                    </span>
+                  </div>
                 </Td>
                 <Td>
                   {a.research_interests.length > 0 ? (

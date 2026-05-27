@@ -147,7 +147,7 @@ async def list_notes(
 
     sort = query.sort or "latest"
     if sort == "hot":
-        rows.sort(key=lambda r: (-(r[1] + r[2]), -r[0].created_at.timestamp()))
+        rows.sort(key=lambda r: (-r[1], -r[2], r[0].title))
     elif sort == "liked":
         rows.sort(key=lambda r: (-r[1], -r[0].created_at.timestamp()))
     else:  # latest

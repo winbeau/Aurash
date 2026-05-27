@@ -105,10 +105,14 @@ export function useNotes(
   })
 }
 
+const SIX_HOURS = 6 * 60 * 60 * 1000
+
 export function useHotNotes(): UseQueryResult<Note[]> {
   return useQuery({
     queryKey: ['notes', 'hot'],
     queryFn: notesApi.getHotThisWeek,
+    staleTime: SIX_HOURS,
+    refetchInterval: SIX_HOURS,
   })
 }
 
@@ -116,6 +120,8 @@ export function useLatestNotes(): UseQueryResult<Note[]> {
   return useQuery({
     queryKey: ['notes', 'latest'],
     queryFn: notesApi.getLatest,
+    staleTime: SIX_HOURS,
+    refetchInterval: SIX_HOURS,
   })
 }
 
@@ -123,6 +129,8 @@ export function useMostLikedNotes(): UseQueryResult<Note[]> {
   return useQuery({
     queryKey: ['notes', 'liked'],
     queryFn: notesApi.getMostLiked,
+    staleTime: SIX_HOURS,
+    refetchInterval: SIX_HOURS,
   })
 }
 
