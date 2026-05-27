@@ -4,9 +4,9 @@ Integrated into the API process (like author_sync): reads the conferences
 sqlite, checks due rows (next_check_at <= now), fetches each homepage via
 httpx, asks DeepSeek v4-flash to extract CFP info, and writes back.
 
-The conferences_engine holder hot-reloads on mtime, so after the crawl
-commits and the caller calls force_reload(), the /conferences API serves
-fresh data immediately.
+The backend's engine holds the sqlite in mode=ro&immutable=1 which blocks
+in-place writes. So we copy → modify → os.replace() atomically, then
+force_reload() picks up the new file via mtime change.
 
 Call crawl_sync() from asyncio.to_thread in the background loop; it's
 intentionally synchronous (plain httpx + openai + sqlite3) so it doesn't
@@ -17,8 +17,11 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
+import shutil
 import sqlite3
+import tempfile
 import time
 from datetime import date, datetime, timedelta, timezone
 from html.parser import HTMLParser
@@ -171,7 +174,13 @@ def crawl_sync(
 
     today = date.today()
     now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    conn = sqlite3.connect(sqlite_path)
+
+    # Copy sqlite to a temp file for writing — the backend engine holds the
+    # original in mode=ro&immutable=1 which blocks in-place writes.
+    fd, tmp_path = tempfile.mkstemp(suffix=".sqlite", dir=data_dir)
+    os.close(fd)
+    shutil.copy2(sqlite_path, tmp_path)
+    conn = sqlite3.connect(tmp_path)
 
     cols = ["id", "abbr", "name_full", "field", "tier", "homepage",
             "cycle", "deadline", "crawl_state", "target_year"]
@@ -265,11 +274,15 @@ def crawl_sync(
         time.sleep(INTER_CALL_SLEEP)
 
     conn.commit()
-
-    # Rewrite manifest
-    raw = sqlite_path.read_bytes()
     count = conn.execute("SELECT COUNT(*) FROM conferences").fetchone()[0]
     conn.close()
+
+    # Atomic replace: swap the temp file over the original. The engine detects
+    # the mtime bump and reloads on the next request.
+    os.replace(tmp_path, sqlite_path)
+
+    # Rewrite manifest from the now-current file.
+    raw = sqlite_path.read_bytes()
     manifest = {
         "schema_version": 1,
         "exported_at": now_iso,
