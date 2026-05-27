@@ -43,6 +43,13 @@ class Settings(BaseSettings):
     schools_data_dir: str = "data/schools"
     conferences_data_dir: str = "data/conferences"
 
+    # Conference deadline crawler — background loop that checks due conferences,
+    # fetches homepages, and asks DeepSeek to extract CFP info. Interval is how
+    # often the loop wakes up to check for due rows (per-conf frequency is
+    # controlled by crawl_state: unannounced=1d, announced=5d, closed=stop).
+    conf_crawl_enabled: bool = True
+    conf_crawl_interval_hours: int = 6
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [s.strip() for s in self.cors_origins.split(",") if s.strip()]

@@ -46,3 +46,13 @@ class ConferencesOut(SnakeModel):
 class ReloadResult(SnakeModel):
     ok: bool
     manifest: ManifestOut | None = None
+
+
+class CrawlResult(SnakeModel):
+    due: int = 0
+    updated: int = 0
+    found: int = 0
+    dry_run: bool = False
+    error: str | None = None
+    results: list[dict[str, str | None]] = []
+    conferences: list[str] = []

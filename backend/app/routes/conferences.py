@@ -1,7 +1,9 @@
-"""HTTP routes for /conferences and /admin/conferences/reload."""
+"""HTTP routes for /conferences and /admin/conferences/*."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+import asyncio
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.conferences_engine import (
@@ -14,10 +16,13 @@ from app.routes.admin import require_admin
 from app.schemas.conference import (
     ConferenceRow,
     ConferencesOut,
+    CrawlResult,
     ManifestOut,
     ReloadResult,
 )
+from app.services.conferences_crawler import crawl_sync
 from app.services.conferences_query import list_conferences
+from app.settings import settings
 
 router = APIRouter(tags=["conferences"])
 
@@ -62,3 +67,27 @@ async def conferences_reload(
 ) -> ReloadResult:
     ok = await holder.force_reload()
     return ReloadResult(ok=ok, manifest=_manifest_or_none(holder))
+
+
+@router.post("/admin/conferences/crawl", response_model=CrawlResult)
+async def conferences_crawl(
+    limit: int = Query(default=20, ge=1, le=230),
+    dry_run: bool = Query(default=False),
+    _admin: User = Depends(require_admin),
+    holder: ConferencesEngineHolder = Depends(_get_holder),
+) -> CrawlResult:
+    if not settings.deepseek_api_key:
+        raise HTTPException(status_code=503, detail="DEEPSEEK_API_KEY not configured")
+    data_dir = holder.sqlite_path.parent
+    result = await asyncio.to_thread(
+        crawl_sync,
+        data_dir,
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
+        model=settings.deepseek_model,
+        limit=limit,
+        dry_run=dry_run,
+    )
+    if result.get("found", 0) and not dry_run:
+        await holder.force_reload()
+    return CrawlResult.model_validate(result)

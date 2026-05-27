@@ -12,7 +12,10 @@ export type SchoolCode =
   | 'zju'
   | 'ustc'
   | 'hit'
+  | 'hitsz'
   | 'xjtu'
+  | 'pkusz'
+  | 'thusz'
   | (string & {})
 export type GroupCode = 'top2' | 'hwu' | 'c9' | 'all'
 export type Reputation = 'positive' | 'neutral' | 'negative' | 'unknown'

@@ -10,7 +10,7 @@ import type {
   TraceItem,
 } from './types'
 
-// C9 顺序按联盟成立公告原序：清华、北大、复旦、上交、南大、浙大、中科大、哈工大、西安交大。
+// C9 顺序按联盟成立公告原序：清华、北大、复旦、上交、南大、浙大、中科大、哈工深、西安交大。
 export const C9_SCHOOLS: SchoolCode[] = [
   'tsinghua',
   'pku',
@@ -19,12 +19,12 @@ export const C9_SCHOOLS: SchoolCode[] = [
   'nju',
   'zju',
   'ustc',
-  'hit',
+  'hitsz',
   'xjtu',
 ]
 
 export const SCHOOL_GROUPS: SchoolGroup[] = [
-  { code: 'top2', label: 'Top2', schools: ['tsinghua', 'pku'] },
+  { code: 'top2', label: 'Top2', schools: ['tsinghua', 'pku', 'thusz', 'pkusz'] },
   { code: 'hwu', label: '华五', schools: ['fudan', 'sjtu', 'nju', 'zju', 'ustc'] },
   { code: 'c9', label: 'C9 高校', schools: C9_SCHOOLS },
   // "高校信息" 的 chips 在运行时由 SchoolsPage 从 /schools/meta 拼出来
@@ -42,6 +42,9 @@ export const SCHOOLS: Partial<Record<SchoolCode, School>> = {
   zju: { code: 'zju', name_cn: '浙江大学', short: '浙大', city: '杭州' },
   ustc: { code: 'ustc', name_cn: '中国科学技术大学', short: '中科大', city: '合肥' },
   hit: { code: 'hit', name_cn: '哈尔滨工业大学', short: '哈工大', city: '哈尔滨' },
+  hitsz: { code: 'hitsz', name_cn: '哈尔滨工业大学（深圳）', short: '哈工深', city: '深圳' },
+  pkusz: { code: 'pkusz', name_cn: '北京大学深圳研究生院', short: '北大深圳', city: '深圳' },
+  thusz: { code: 'thusz', name_cn: '清华大学深圳国际研究生院', short: '清华深圳', city: '深圳' },
   xjtu: { code: 'xjtu', name_cn: '西安交通大学', short: '西交', city: '西安' },
 }
 

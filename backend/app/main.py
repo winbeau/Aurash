@@ -28,7 +28,10 @@ from app.routes import (
     uploads,
 )
 from app.services.author_sync import repair
+from app.services.conferences_crawler import crawl_sync
 from app.settings import settings
+
+_crawl_log = logging.getLogger("xju_feiyue.conf_crawler")
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 UPLOAD_DIR = BACKEND_DIR / "uploads"
@@ -64,6 +67,30 @@ async def _author_sync_loop() -> None:
         await asyncio.sleep(AUTHOR_SYNC_INTERVAL_SECONDS)
 
 
+async def _conf_crawl_loop(conf_holder) -> None:  # type: ignore[type-arg]
+    interval = settings.conf_crawl_interval_hours * 3600
+    while True:
+        if not settings.deepseek_api_key:
+            _crawl_log.warning("conf_crawl: DEEPSEEK_API_KEY not set, skipping")
+            await asyncio.sleep(interval)
+            continue
+        try:
+            result = await asyncio.to_thread(
+                crawl_sync,
+                CONFERENCES_DATA_DIR,
+                api_key=settings.deepseek_api_key,
+                base_url=settings.deepseek_base_url,
+                model=settings.deepseek_model,
+                dry_run=settings.deepseek_dry_run,
+            )
+            if result.get("found", 0):
+                await conf_holder.force_reload()
+                _crawl_log.info("conf_crawl: %s", result)
+        except Exception:  # noqa: BLE001
+            _crawl_log.exception("conf_crawl: cycle failed")
+        await asyncio.sleep(interval)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa: ARG001 - signature required
     # Engine ping happens lazily on first request; nothing to do at boot.
@@ -72,14 +99,16 @@ async def lifespan(app: FastAPI):  # noqa: ARG001 - signature required
     await schools_holder.boot()
     conf_holder = init_conferences_holder(CONFERENCES_DATA_DIR)
     await conf_holder.boot()
-    task = asyncio.create_task(_author_sync_loop()) if settings.author_sync_enabled else None
+    sync_task = asyncio.create_task(_author_sync_loop()) if settings.author_sync_enabled else None
+    crawl_task = asyncio.create_task(_conf_crawl_loop(conf_holder)) if settings.conf_crawl_enabled else None
     try:
         yield
     finally:
-        if task is not None:
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await task
+        for t in (sync_task, crawl_task):
+            if t is not None:
+                t.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await t
         await schools_holder.dispose()
         await conf_holder.dispose()
 
