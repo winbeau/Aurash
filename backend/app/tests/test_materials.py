@@ -80,6 +80,28 @@ async def second_headers(
     return {"Authorization": f"Bearer {r.json()['token']}"}
 
 
+@pytest.fixture
+async def admin_headers(
+    client: AsyncClient, db_session: AsyncSession
+) -> dict[str, str]:
+    """The configured super-admin (settings.admin_sid) — CRUD-any bypass."""
+    from app.settings import settings
+
+    user = models.User(
+        sid=settings.admin_sid,
+        name="Super Admin",
+        nickname="admin",
+        password_hash=hash_password("123456"),
+    )
+    db_session.add(user)
+    await db_session.commit()
+    r = await client.post(
+        "/auth/login", json={"sid": settings.admin_sid, "password": "123456"}
+    )
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['token']}"}
+
+
 def _pdf_bytes() -> bytes:
     """Minimal valid-enough PDF (magic header is all `sniff_magic` checks)."""
     return b"%PDF-1.4\n%%EOF\n"
@@ -99,7 +121,7 @@ async def _create_resource(
 ) -> str:
     r = await client.post(
         "/materials/resources",
-        json={"title": title, "description": "课件合集", "tag": "Hot"},
+        json={"title": title, "description": "课件合集", "tag": "专业课"},
         headers=headers,
     )
     assert r.status_code == 201, r.text
@@ -148,13 +170,13 @@ async def test_create_resource_returns_camelcase(
 ) -> None:
     r = await client.post(
         "/materials/resources",
-        json={"title": "数据结构", "description": "讲义", "tag": "New"},
+        json={"title": "数据结构", "description": "讲义", "tag": "通识课"},
         headers=auth_headers,
     )
     assert r.status_code == 201, r.text
     body = r.json()
     assert body["title"] == "数据结构"
-    assert body["tag"] == "New"
+    assert body["tag"] == "通识课"
     assert body["ownerSid"] == "20211010001"
     assert "createdAt" in body and "created_at" not in body
     assert body["createdAt"].endswith("Z")
@@ -241,6 +263,47 @@ async def test_update_resource_owner_only(
         headers=second_headers,
     )
     assert r.status_code == 403
+
+
+async def test_super_admin_can_modify_any_resource(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+    admin_headers: dict[str, str],
+) -> None:
+    """Super-admin (settings.admin_sid) bypasses owner checks: edit / upload /
+    delete any user's resource."""
+    rid = await _create_resource(client, auth_headers)  # owned by 20211010001
+    # Edit someone else's resource -> 200.
+    r = await client.patch(
+        f"/materials/resources/{rid}",
+        json={"title": "管理员改的"},
+        headers=admin_headers,
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["title"] == "管理员改的"
+    # Upload into it -> 200.
+    up = await client.post(
+        f"/materials/resources/{rid}/files",
+        files={"files": ("admin.pdf", _pdf_bytes(), "application/pdf")},
+        headers=admin_headers,
+    )
+    assert up.status_code == 200, up.text
+    # Delete it -> 204.
+    d = await client.delete(f"/materials/resources/{rid}", headers=admin_headers)
+    assert d.status_code == 204
+
+
+async def test_user_out_exposes_is_admin(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+    admin_headers: dict[str, str],
+) -> None:
+    """UserOut.is_admin serializes as camelCase `isAdmin`; True only for the
+    configured super-admin."""
+    me = await client.get("/auth/me", headers=auth_headers)
+    assert me.json()["isAdmin"] is False
+    me_admin = await client.get("/auth/me", headers=admin_headers)
+    assert me_admin.json()["isAdmin"] is True
 
 
 # ---------------------------------------------------------------------------

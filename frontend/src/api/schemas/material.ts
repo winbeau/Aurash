@@ -15,8 +15,8 @@ import { z } from 'zod'
  * 「资料」= 共享知识库：所有登录用户可浏览全部未删资源；写/删某资源仅 owner 可。
  */
 
-/** 资源卡角标徽章。null = 无徽章。 */
-export const ResourceTagSchema = z.enum(['New', 'Hot', 'Rec'])
+/** 课程类型 —— 资源卡角标 + 列表筛选选项卡。null = 未分类（无徽章）。 */
+export const ResourceTagSchema = z.enum(['专业课', '通识课', '实验课'])
 export type ResourceTag = z.infer<typeof ResourceTagSchema>
 
 /** 拖拽落点语义（reorder API body 的 position 字段）。 */

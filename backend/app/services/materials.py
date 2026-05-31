@@ -240,9 +240,11 @@ def ensure_owner(resource: MaterialResource, user: User) -> None:
     """Authorize a write/modify/delete on `resource`.
 
     Materials is a shared knowledge base: any logged-in user may *read* every
-    resource, but only the owner may modify it or its files (plan decision §1).
+    resource. Writes are restricted to the resource owner — **except** the
+    configured super-admin (``settings.admin_sid``), who may create/modify/
+    delete any resource and its files (super-admin CRUD-any, plan decision §1).
     """
-    if resource.owner_sid != user.sid:
+    if resource.owner_sid != user.sid and user.sid != settings.admin_sid:
         raise HTTPException(status_code=403, detail="只能修改自己的资料")
 
 

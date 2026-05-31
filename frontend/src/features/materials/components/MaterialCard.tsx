@@ -37,7 +37,9 @@ type Props = {
 
 export function MaterialCard({ resource, onOpen, onEdit, onDelete }: Props) {
   const sid = useAuthStore((s) => s.user?.sid ?? null)
-  const isOwner = sid != null && sid === resource.ownerSid
+  const isAdmin = useAuthStore((s) => s.user?.isAdmin ?? false)
+  // 资源 owner 或超级管理员可管理（编辑/删除）。
+  const canManage = isAdmin || (sid != null && sid === resource.ownerSid)
 
   const badge = getTagBadge(resource.tag)
   const fileCount = countFiles(resource.files)
@@ -80,7 +82,7 @@ export function MaterialCard({ resource, onOpen, onEdit, onDelete }: Props) {
           <span aria-hidden className="h-5" />
         )}
 
-        {isOwner ? (
+        {canManage ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

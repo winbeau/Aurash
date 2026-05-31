@@ -5,9 +5,9 @@ import type { ResourceTag } from './types'
  * 「资料」页静态展示数据 —— TAG 徽章样式映射 + 空态文案。
  *
  * 设计要点：
- * - 角标徽章配色只用 tailwind token（cat-* 与 tag-*），禁硬编码 sky / slate：
- *   New → cat-recommend（推免绿松石）、Hot → cat-research（科研红）、
- *   Rec → cat-tools（工具绿）。底座用对应 12% tint（bg-tag-*）。
+ * - 角标配色只用 tailwind token（cat-* 与 tag-*），禁硬编码 sky / slate：
+ *   专业课 → cat-research（科研红）、通识课 → cat-kaggle（蓝）、
+ *   实验课 → cat-tools（工具绿）。底座用对应 12% tint（bg-tag-*）。
  * - 文件类型图标统一走共享 `@/components/common/FileTypeIcon`（kindOf 驱动），
  *   这里不重复造图标，只给 TAG 角标与空态文案。
  */
@@ -22,39 +22,39 @@ export type TagBadgeStyle = {
   borderClass: string
 }
 
-/** TAG → 徽章样式。仅 New/Hot/Rec 三种；null 不渲染徽章。 */
+/** 课程类型 → 角标样式。专业课/通识课/实验课；null 不渲染角标。 */
 export const TAG_BADGE: Readonly<Record<ResourceTag, TagBadgeStyle>> = Object.freeze({
-  New: {
-    label: '新上线',
-    textClass: 'text-cat-recommend',
-    bgClass: 'bg-tag-recommend',
-    borderClass: 'border-cat-recommend/30',
-  },
-  Hot: {
-    label: '热门',
+  专业课: {
+    label: '专业课',
     textClass: 'text-cat-research',
     bgClass: 'bg-tag-research',
     borderClass: 'border-cat-research/30',
   },
-  Rec: {
-    label: '推荐',
+  通识课: {
+    label: '通识课',
+    textClass: 'text-cat-kaggle',
+    bgClass: 'bg-tag-kaggle',
+    borderClass: 'border-cat-kaggle/30',
+  },
+  实验课: {
+    label: '实验课',
     textClass: 'text-cat-tools',
     bgClass: 'bg-tag-tools',
     borderClass: 'border-cat-tools/30',
   },
 })
 
-/** 安全取 TAG 样式；未知 tag（理论上 schema 已拦）回退 null。 */
+/** 安全取课程类型样式；未知值（理论上 schema 已拦）回退 null。 */
 export function getTagBadge(tag: ResourceTag | null | undefined): TagBadgeStyle | null {
   if (!tag) return null
   return TAG_BADGE[tag] ?? null
 }
 
-/** 资源卡上 Select 可选的 TAG 选项（含「无」）。 */
+/** 资源卡上 Select 可选的课程类型（另有「无」哨兵 TAG_NONE）。 */
 export const TAG_OPTIONS: ReadonlyArray<{ value: ResourceTag; label: string }> = [
-  { value: 'New', label: '新上线' },
-  { value: 'Hot', label: '热门' },
-  { value: 'Rec', label: '推荐' },
+  { value: '专业课', label: '专业课' },
+  { value: '通识课', label: '通识课' },
+  { value: '实验课', label: '实验课' },
 ]
 
 /** 「无徽章」在 Select 里的哨兵值（Radix Select 不接受空串 value）。 */

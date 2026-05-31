@@ -52,7 +52,7 @@ const VALID_RESOURCE = {
   id: 'r1',
   title: '数字逻辑课程资料',
   description: '含 PPT、实验指导、参考资料。',
-  tag: 'Hot' as const,
+  tag: '专业课' as const,
   ownerSid: '20231234',
   updateDate: '2026-05-31T08:00:00Z',
   createdAt: '2026-05-01T08:00:00Z',

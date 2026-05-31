@@ -17,6 +17,9 @@ export const UserSchema = z.object({
   wechat: z.string().nullish(),
   phone: z.string().nullish(),
   email: z.string().nullish(),
+  /** True iff this user is the configured super-admin (backend settings.admin_sid).
+   * Gates admin-only UI (manage any 资料). nullish for back-compat. */
+  isAdmin: z.boolean().nullish(),
 })
 export type User = z.infer<typeof UserSchema>
 

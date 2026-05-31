@@ -10,8 +10,14 @@ import { FilePreviewDialog } from '@/components/common/FilePreviewDialog'
 import { useAuthStore } from '@/stores/authStore'
 import { cn } from '@/lib/cn'
 
-import { EMPTY_RESOURCES, EMPTY_SEARCH, ERROR_COPY } from '../data'
-import type { MaterialFile, MaterialResource, PreviewTarget } from '../types'
+import { EMPTY_RESOURCES, EMPTY_SEARCH, ERROR_COPY, TAG_OPTIONS } from '../data'
+import type { MaterialFile, MaterialResource, PreviewTarget, ResourceTag } from '../types'
+
+/** 课程类型筛选选项卡：全部 + 三类。 */
+const TAG_TABS: ReadonlyArray<{ value: ResourceTag | 'all'; label: string }> = [
+  { value: 'all', label: '全部' },
+  ...TAG_OPTIONS,
+]
 import { useDeleteResource, useResources } from '../hooks/useMaterials'
 import { MaterialCard } from './MaterialCard'
 import { RecentUploads, type RecentItem } from './RecentUploads'
@@ -62,7 +68,16 @@ export function MaterialListView({ onOpenResource }: Props) {
   // 文件预览（最近上传点击）。
   const [preview, setPreview] = React.useState<PreviewTarget | null>(null)
 
+  // 课程类型筛选选项卡。
+  const [tab, setTab] = React.useState<ResourceTag | 'all'>('all')
+
   const resources = React.useMemo(() => resourcesQuery.data ?? [], [resourcesQuery.data])
+  // 按选项卡过滤（客户端：列表已返回全部资源）。
+  const filtered = React.useMemo(
+    () => (tab === 'all' ? resources : resources.filter((r) => r.tag === tab)),
+    [resources, tab],
+  )
+  const isFiltered = query !== '' || tab !== 'all'
 
   const onCreate = () => {
     setEditing(null)
@@ -130,14 +145,43 @@ export function MaterialListView({ onOpenResource }: Props) {
         />
       </div>
 
+      {/* 课程类型筛选选项卡 */}
+      <div role="tablist" aria-label="课程类型" className="mb-5 flex flex-wrap items-center gap-1">
+        {TAG_TABS.map((t) => {
+          const active = tab === t.value
+          const count =
+            t.value === 'all'
+              ? resources.length
+              : resources.filter((r) => r.tag === t.value).length
+          return (
+            <button
+              key={t.value}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setTab(t.value)}
+              className={cn(
+                'inline-flex h-8 items-center gap-1.5 rounded-sm px-3 text-sm font-medium transition',
+                active
+                  ? 'bg-bg-subtle text-text'
+                  : 'text-text-muted hover:bg-bg-subtle hover:text-text',
+              )}
+            >
+              {t.label}
+              <span className="text-xs text-text-faint">{count}</span>
+            </button>
+          )
+        })}
+      </div>
+
       <RecentUploads items={recentItems} onPreview={setPreview} className="mb-6" />
 
       <ListBody
-        query={query}
+        isFiltered={isFiltered}
         isPending={resourcesQuery.isPending}
         isError={resourcesQuery.isError}
         errorMessage={resourcesQuery.error?.message}
-        resources={resources}
+        resources={filtered}
         onRetry={() => void resourcesQuery.refetch()}
         onOpen={(r) => onOpenResource?.(r)}
         onEdit={onEdit}
@@ -180,7 +224,7 @@ export function MaterialListView({ onOpenResource }: Props) {
 }
 
 function ListBody({
-  query,
+  isFiltered,
   isPending,
   isError,
   errorMessage,
@@ -192,7 +236,7 @@ function ListBody({
   onCreate,
   canCreate,
 }: {
-  query: string
+  isFiltered: boolean
   isPending: boolean
   isError: boolean
   errorMessage?: string | undefined
@@ -211,13 +255,13 @@ function ListBody({
   }
 
   if (resources.length === 0) {
-    const copy = query ? EMPTY_SEARCH : EMPTY_RESOURCES
+    const copy = isFiltered ? EMPTY_SEARCH : EMPTY_RESOURCES
     return (
       <EmptyState
         icon={copy.icon}
         title={copy.title}
         description={copy.description}
-        {...(!query && canCreate ? { action: { label: '新建资料', onClick: onCreate } } : {})}
+        {...(!isFiltered && canCreate ? { action: { label: '新建资料', onClick: onCreate } } : {})}
       />
     )
   }

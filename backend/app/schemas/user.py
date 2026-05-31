@@ -5,9 +5,10 @@ only ever returned for the current user (PrivilegeS).  When a note's
 author is embedded, we use NoteAuthorOut (sid + nickname + avatar) so
 we never leak contact info via /notes responses.
 """
-from pydantic import Field
+from pydantic import Field, computed_field
 
 from app.schemas._base import CamelModel
+from app.settings import settings
 
 
 class UserOut(CamelModel):
@@ -20,6 +21,16 @@ class UserOut(CamelModel):
     wechat: str | None = None
     phone: str | None = None
     email: str | None = None
+
+    @computed_field(alias="isAdmin")  # type: ignore[prop-decorator]
+    @property
+    def is_admin(self) -> bool:
+        """True iff this user is the configured super-admin (settings.admin_sid).
+
+        Derived (not a column) — so login / /auth/me return it with no route
+        change; drives admin-only UI (manage any 资料) on the frontend.
+        """
+        return self.sid == settings.admin_sid
 
 
 class NoteAuthorOut(CamelModel):

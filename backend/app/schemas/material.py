@@ -19,8 +19,10 @@ from pydantic import Field
 
 from app.schemas._base import CamelModel, UtcDateTime
 
-# Corner badge on the resource card. NULL = no badge.
-MaterialTag = Literal["New", "Hot", "Rec"]
+# Course type — shown as the resource card's corner badge and used as the
+# list-page filter tabs. NULL = unclassified (no badge). Only these three
+# values can ever be stored (Create/Update validate against this Literal).
+MaterialTag = Literal["专业课", "通识课", "实验课"]
 # Where the dragged node lands relative to the drop target.
 ReorderPosition = Literal["before", "after", "inside"]
 

@@ -58,7 +58,9 @@ type Props = {
 
 export function MaterialDetailView({ resource, onBack, onDeleteResource }: Props) {
   const sid = useAuthStore((s) => s.user?.sid ?? null)
-  const canWrite = sid != null && sid === resource.ownerSid
+  const isAdmin = useAuthStore((s) => s.user?.isAdmin ?? false)
+  // owner 或超级管理员可写（新建文件夹 / 上传 / 重命名 / 删除 / 拖拽 reorder）。
+  const canWrite = isAdmin || (sid != null && sid === resource.ownerSid)
 
   const filesQuery = useFiles(resource.id)
   const files = React.useMemo(() => filesQuery.data ?? [], [filesQuery.data])
