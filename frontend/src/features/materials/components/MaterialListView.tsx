@@ -121,29 +121,38 @@ export function MaterialListView({ onOpenResource }: Props) {
     <main className="w-full px-7 pb-24 pt-7 xl:px-10">
       {confirmHost}
 
-      <header className="mb-4 flex items-baseline justify-between gap-4">
-        <h1 className="m-0 font-serif text-[28px] font-semibold tracking-[-0.01em] text-text">
-          资料
-        </h1>
-        <div className="font-sans text-[13px] text-text-muted">
-          共 <strong className="font-semibold text-text">{resources.length}</strong> 份课程资料
+      {/* 顶部行：标题+计数（左） / 搜索框 + 最近上传弹出按钮（右，ml-auto）同行并列。
+          窄屏 flex-wrap 优雅换行。 */}
+      <header className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-3">
+        <div className="flex items-baseline gap-3">
+          <h1 className="m-0 font-serif text-[28px] font-semibold tracking-[-0.01em] text-text">
+            资料
+          </h1>
+          <span className="font-sans text-[13px] text-text-muted">
+            共 <strong className="font-semibold text-text">{resources.length}</strong> 份课程资料
+          </span>
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
+          {/* 页面级搜索 */}
+          <div className="relative w-52 sm:w-64">
+            <Search
+              aria-hidden
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-faint"
+            />
+            <Input
+              value={rawQuery}
+              onChange={(e) => setRawQuery(e.target.value)}
+              placeholder="搜索资料…"
+              className="pl-9"
+              aria-label="搜索资料"
+            />
+          </div>
+
+          {/* 最近上传（弹出层按钮，仅有最近文件时出现） */}
+          <RecentUploads items={recentItems} onPreview={setPreview} />
         </div>
       </header>
-
-      {/* 页面级搜索 */}
-      <div className="relative mb-5 max-w-md">
-        <Search
-          aria-hidden
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-faint"
-        />
-        <Input
-          value={rawQuery}
-          onChange={(e) => setRawQuery(e.target.value)}
-          placeholder="搜索资料标题 / 简介…"
-          className="pl-9"
-          aria-label="搜索资料"
-        />
-      </div>
 
       {/* 课程类型筛选选项卡 */}
       <div role="tablist" aria-label="课程类型" className="mb-5 flex flex-wrap items-center gap-1">
@@ -173,8 +182,6 @@ export function MaterialListView({ onOpenResource }: Props) {
           )
         })}
       </div>
-
-      <RecentUploads items={recentItems} onPreview={setPreview} className="mb-6" />
 
       <ListBody
         isFiltered={isFiltered}
