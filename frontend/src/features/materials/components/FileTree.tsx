@@ -233,7 +233,10 @@ export function FileTree({
         onDragCancel={finish}
       >
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-          <div role="tree" aria-label="文件树" className="py-1.5 pr-1.5">
+          {/* px-2：行（含拖拽蓝色高亮 ring/指示线）左右各留 8px 余白——左侧不再被
+              滚动视口边缘裁掉、右侧与分栏条保持一致间距；余白相对面板宽度，故拖动
+              分栏条时蓝框右缘自动跟随、不会被盖住。 */}
+          <div role="tree" aria-label="文件树" className="px-2 py-1.5">
             {flat.map((node) => {
               // 该行是否承载落点指示线（before/after）。inside 落点的指示线由父
               // 文件夹行承载（line=该夹首子位置），同时父行整行高亮。
