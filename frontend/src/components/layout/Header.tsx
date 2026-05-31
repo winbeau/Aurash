@@ -49,6 +49,7 @@ export function Header() {
         <NavItem to="/" label="主页" />
         <MegaMenu />
         <NavItem to="/write" label="写作" />
+        <NavItem to="/materials" label="资料" />
         <NavItem to="/schools" label="高校信息" />
         <NavItem to="/conferences" label="CCF 会议" />
       </nav>

@@ -47,12 +47,39 @@ async def test_list_filter_by_tag(client: AsyncClient, seeded_notes) -> None:
 
 
 async def test_list_sort_hot(client: AsyncClient, seeded_notes) -> None:
-    """sort=hot orders by (likes + comments) desc, ties broken by createdAt desc."""
+    """sort=hot scopes to notes created *this week* then orders by
+    (likes desc, comments desc, title asc) — see services.notes.list_notes
+    and commit 44f3ca8 (本周热门只取本周创建的笔记).
+    """
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    week_start = now - timedelta(
+        days=now.weekday(),
+        hours=now.hour,
+        minutes=now.minute,
+        seconds=now.second,
+        microseconds=now.microsecond,
+    )
+
+    # Fixture spec: (id, days_ago, likes, comments, title). Newer → older.
+    spec = [
+        ("note_005", 1, 1, 1, "Tools E"),
+        ("note_004", 2, 3, 2, "Kaggle D"),
+        ("note_003", 3, 2, 0, "Research C"),
+        ("note_002", 4, 1, 1, "Kaggle B"),
+        ("note_001", 5, 0, 0, "Research A"),
+    ]
+    # Only notes created this week are eligible (matches the service WHERE).
+    eligible = [s for s in spec if (now - timedelta(days=s[1])) >= week_start]
+    # Production sort key: likes desc, comments desc, title asc.
+    expected = [
+        s[0] for s in sorted(eligible, key=lambda s: (-s[2], -s[3], s[4]))
+    ]
+
     r = await client.get("/notes?sort=hot")
     ids = [n["id"] for n in r.json()["items"]]
-    # Engagement scores: 004=5, 005=2, 003=2, 002=2, 001=0
-    # Among ties at 2: 005(1d) > 003(3d) > 002(4d)
-    assert ids == ["note_004", "note_005", "note_003", "note_002", "note_001"]
+    assert ids == expected
 
 
 async def test_list_sort_liked(client: AsyncClient, seeded_notes) -> None:
@@ -132,9 +159,9 @@ async def test_get_one_existing_includes_full_camelcase_shape(
     assert "created_at" not in body
     # Spec §1: ISO 8601 UTC with `Z` suffix
     assert body["createdAt"].endswith("Z"), body["createdAt"]
-    # Author shape
-    assert body["author"]["id"] == "usr_test_00"
-    assert body["author"]["name"] == "User 0"
+    # Author shape — NoteAuthorOut exposes sid + nickname (no synthetic id/name)
+    assert body["author"]["sid"] == "20211010001"
+    assert body["author"]["nickname"] == "user_0"
 
 
 async def test_get_one_missing_returns_404(

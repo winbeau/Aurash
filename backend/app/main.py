@@ -23,6 +23,7 @@ from app.routes import (
     conferences,
     drafts,
     interactions,
+    materials,
     notes,
     schools,
     uploads,
@@ -35,6 +36,37 @@ _crawl_log = logging.getLogger("xju_feiyue.conf_crawler")
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
 UPLOAD_DIR = BACKEND_DIR / "uploads"
+
+
+class HardenedStaticFiles(StaticFiles):
+    """StaticFiles for `/uploads` that always sets `X-Content-Type-Options`.
+
+    `/uploads` is a public direct-link mount shared by avatars/note images
+    (which we *want* inline) and doc attachments / materials files. We add
+    the cheap, inlining-safe `nosniff` header to *every* response so a
+    browser never MIME-sniffs an uploaded payload into an executable page
+    (stored-XSS defense #2). Combined with the upload-time deny-list
+    (`uploads_common.DENY_EXTS` rejects .svg/.html/.htm/.xml — defense #1),
+    a crafted upload can't be served as HTML/script.
+
+    The stronger doc-class `Content-Disposition: attachment` (force download
+    rather than inline render) is intentionally NOT applied here — it would
+    break inline images / PDF preview and is per-extension. Per the decision
+    documented in `app/services/uploads_common.py` (plan §5: "二选一"), that
+    half is implemented at the **prod nginx** `location /uploads/` block
+    (doc-class regex → Content-Disposition). See that module's docstring for
+    the exact nginx snippet the runbook must apply on huawei2.
+
+    `get_response` is Starlette's stable async override seam — it returns the
+    `Response` (FileResponse / 404 / 405) and we set the header on its public
+    `MutableHeaders` before it's sent. `setdefault` so we never clobber a
+    header an upstream layer already set.
+    """
+
+    async def get_response(self, path, scope):  # type: ignore[override]
+        response = await super().get_response(path, scope)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        return response
 
 
 def _resolve_data_dir(value: str) -> Path:
@@ -126,10 +158,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Avatar uploads — file storage backing /auth/me/avatar. `check_dir=False`
+# Avatar / note-image / doc-attachment / materials file storage. `check_dir=False`
 # means an empty dir won't 500 on boot; lifespan creates it lazily.
+# `HardenedStaticFiles` adds `X-Content-Type-Options: nosniff` to every response
+# (inlining-safe stored-XSS defense); doc-class `Content-Disposition` is the
+# prod-nginx half (see HardenedStaticFiles / uploads_common docstrings).
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR, check_dir=False), name="uploads")
+app.mount("/uploads", HardenedStaticFiles(directory=UPLOAD_DIR, check_dir=False), name="uploads")
 
 app.include_router(auth.router)
 app.include_router(notes.router)
@@ -140,6 +175,7 @@ app.include_router(ai.router)
 app.include_router(admin.router)
 app.include_router(schools.router)
 app.include_router(conferences.router)
+app.include_router(materials.router)
 
 
 @app.get("/health", tags=["meta"])

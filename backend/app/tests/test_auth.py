@@ -19,9 +19,10 @@ async def test_login_success(client: AsyncClient, demo_user: User) -> None:
     assert isinstance(body["token"], str) and len(body["token"]) > 20
 
     user = body["user"]
-    assert user["id"] == "usr_test_zilun"
+    # sid is the natural primary key — there is no synthetic `id` field.
     assert user["sid"] == "20211010001"
     assert user["name"] == "Zilun Wei"
+    assert user["nickname"] == "zilun"
     assert user["bio"] == "测试账号"
     assert user["avatar"] is None  # nullish — pydantic emits null
 
@@ -102,9 +103,9 @@ async def test_me_with_valid_token(client: AsyncClient, demo_user: User) -> None
     me = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert me.status_code == 200
     body = me.json()
-    assert body["id"] == "usr_test_zilun"
     assert body["sid"] == "20211010001"
     assert body["name"] == "Zilun Wei"
+    assert body["nickname"] == "zilun"
 
 
 async def test_me_token_for_deleted_user(
@@ -118,8 +119,8 @@ async def test_me_token_for_deleted_user(
     )
     token = login.json()["token"]
 
-    # Delete the user
-    await db_session.delete(await db_session.get(User, "usr_test_zilun"))
+    # Delete the user — sid is the primary key.
+    await db_session.delete(await db_session.get(User, "20211010001"))
     await db_session.commit()
 
     me = await client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})

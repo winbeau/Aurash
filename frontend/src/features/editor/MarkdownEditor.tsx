@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react'
 import CodeMirror, { EditorView } from '@uiw/react-codemirror'
 import { markdown } from '@codemirror/lang-markdown'
+import { isImageFile, isDocFile } from '@/lib/fileTypes'
 
 type Props = {
   value: string
@@ -15,9 +16,11 @@ type Props = {
   /** Receive the underlying CodeMirror EditorView so the parent can dispatch
    * transactions (toolbar insertions). Called once after mount. */
   onReady?: (view: EditorView) => void
-  /** Image files pasted into the editor — caller decides upload behavior. */
+  /** Image or document attachment files pasted into the editor (filtered by
+   * `isImageFile || isDocFile`) — caller decides upload behavior. */
   onPasteFiles?: (files: File[]) => void
-  /** Image files dropped onto the editor — caller decides upload behavior. */
+  /** Image or document attachment files dropped onto the editor (filtered by
+   * `isImageFile || isDocFile`) — caller decides upload behavior. */
   onDropFiles?: (files: File[]) => void
   className?: string
 }
@@ -64,8 +67,8 @@ export function MarkdownEditor({
         paste(event) {
           const handler = pasteRef.current
           if (!handler) return false
-          const files = Array.from(event.clipboardData?.files ?? []).filter((f) =>
-            f.type.startsWith('image/'),
+          const files = Array.from(event.clipboardData?.files ?? []).filter(
+            (f) => isImageFile(f) || isDocFile(f),
           )
           if (files.length === 0) return false
           event.preventDefault()
@@ -75,8 +78,8 @@ export function MarkdownEditor({
         drop(event) {
           const handler = dropRef.current
           if (!handler) return false
-          const files = Array.from(event.dataTransfer?.files ?? []).filter((f) =>
-            f.type.startsWith('image/'),
+          const files = Array.from(event.dataTransfer?.files ?? []).filter(
+            (f) => isImageFile(f) || isDocFile(f),
           )
           if (files.length === 0) return false
           event.preventDefault()

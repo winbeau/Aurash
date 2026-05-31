@@ -60,6 +60,9 @@ function collectTextNodes(root: HTMLElement): { nodes: Text[]; total: string } {
     acceptNode: (n) => {
       const el = n.parentElement
       if (el && el.closest('mark.anchor-mark')) return NodeFilter.FILTER_REJECT
+      // FileCard 子树（附件卡片）的文件名等文本不属于正文，必须跳过：否则它
+      // 会污染全局偏移、或把 <mark> 插进卡片内部撕裂布局（plan-file-upload.md §1）。
+      if (el && el.closest('[data-filecard]')) return NodeFilter.FILTER_REJECT
       return NodeFilter.FILTER_ACCEPT
     },
   })

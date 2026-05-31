@@ -43,7 +43,6 @@ async def test_list_drafts_returns_only_mine(
     )
     # Create another user + their draft directly via DB
     other = User(
-        id="usr_other",
         sid="20211019999",
         name="Other",
         nickname="other",

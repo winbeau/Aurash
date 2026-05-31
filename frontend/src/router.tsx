@@ -12,6 +12,9 @@ import { ErrorState } from '@/components/common/ErrorState'
 const HomePage = lazy(() => import('@/pages/HomePage').then((m) => ({ default: m.HomePage })))
 const BrowsePage = lazy(() => import('@/pages/BrowsePage').then((m) => ({ default: m.BrowsePage })))
 const WritePage = lazy(() => import('@/pages/WritePage').then((m) => ({ default: m.WritePage })))
+const MaterialsPage = lazy(() =>
+  import('@/pages/MaterialsPage').then((m) => ({ default: m.MaterialsPage })),
+)
 const SchoolsPage = lazy(() =>
   import('@/pages/SchoolsPage').then((m) => ({ default: m.SchoolsPage })),
 )
@@ -131,6 +134,16 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
           <PageBoundary>
             <RequireAccess requireAuth>
               <WritePage />
+            </RequireAccess>
+          </PageBoundary>
+        ),
+      },
+      {
+        path: '/materials',
+        element: (
+          <PageBoundary>
+            <RequireAccess requireAuth>
+              <MaterialsPage />
             </RequireAccess>
           </PageBoundary>
         ),

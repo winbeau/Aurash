@@ -18,13 +18,17 @@ from PIL import Image, UnidentifiedImageError
 
 from app.db.models import User
 from app.deps import get_current_user
-from app.schemas.uploads import UploadedImage
+from app.schemas.uploads import UploadedFile, UploadedImage
+from app.services import uploads_common
 from app.settings import settings
 
 router = APIRouter(prefix="/notes", tags=["uploads"])
 
 UPLOAD_ROOT = Path(__file__).resolve().parents[2] / "uploads"
 IMAGE_DIR = UPLOAD_ROOT / "notes"
+# Doc attachments share the same `notes/<sid>/` layout as images — both
+# land inside nginx's `/notes` proxy allowlist with zero config change.
+FILE_DIR = UPLOAD_ROOT / "notes"
 ALLOWED_TYPES = {
     "image/png": ".png",
     "image/jpeg": ".jpg",
@@ -63,4 +67,26 @@ async def upload_image(
 
     return UploadedImage(
         url=f"{settings.public_base_url}/uploads/notes/{user.sid}/{fname}"
+    )
+
+
+@router.post("/files", response_model=UploadedFile)
+async def upload_file(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+) -> UploadedFile:
+    """Doc attachment for the writing pane — pdf / word / ppt / excel.
+
+    Validation, streaming chunked write (aborts before an over-size body
+    is fully read), magic-byte sniff, deny-list and the 50 MB cap all live
+    in `uploads_common.save_upload`; this route only owns the `<sid>/`
+    layout and composes the public URL. The display name is sanitized via
+    `safe_display_name` so a crafted filename can't break the
+    `[filename](url)` markdown link the frontend renders.
+    """
+    saved = await uploads_common.save_upload(file, FILE_DIR / user.sid)
+    return UploadedFile(
+        url=f"{settings.public_base_url}/uploads/notes/{user.sid}/{saved.fname}",
+        filename=uploads_common.safe_display_name(file.filename),
+        size=saved.size,
     )

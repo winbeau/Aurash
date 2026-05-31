@@ -30,9 +30,10 @@ def test_verify_password_handles_garbage_hash() -> None:
 
 
 def test_jwt_round_trip() -> None:
-    token = create_access_token("user-123", "20211010001")
+    # JWT `sub` is the user's sid (the table PK); decode_token returns it.
+    token = create_access_token("20211010001")
     assert isinstance(token, str) and token.count(".") == 2
-    assert decode_token(token) == "user-123"
+    assert decode_token(token) == "20211010001"
 
 
 def test_decode_invalid_token_returns_none() -> None:

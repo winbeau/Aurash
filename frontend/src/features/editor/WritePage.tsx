@@ -16,6 +16,13 @@ import * as uploadsApi from '@/api/endpoints/uploads'
 import { useAuthStore } from '@/stores/authStore'
 import { useDraftStore, type Draft } from '@/stores/draftStore'
 import type { CategoryId } from '@/lib/categories'
+import {
+  DOC_EXTS,
+  MAX_UPLOAD_BYTES,
+  formatBytes,
+  isDocFile,
+  isImageFile,
+} from '@/lib/fileTypes'
 import { MarkdownEditor } from './MarkdownEditor'
 import { MarkdownPreview } from './MarkdownPreview'
 import { MainToolbar } from './toolbar/MainToolbar'
@@ -28,6 +35,19 @@ import { useAutoSave } from './hooks/useAutoSave'
 import { useScrollSync } from './hooks/useScrollSync'
 
 const FLOAT_THRESHOLD = 4
+
+// File-picker `accept`: doc extensions (Windows often reports empty MIME, so
+// extensions are the authority) plus canonical MIME hints for nicer dialogs.
+const DOC_ACCEPT = [
+  ...DOC_EXTS,
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+].join(',')
 
 export function WritePage() {
   const { draftId, noteId } = useParams<{ draftId?: string; noteId?: string }>()
@@ -55,6 +75,11 @@ export function WritePage() {
   const [publishing, setPublishing] = useState(false)
   const editorViewRef = useRef<EditorView | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const docInputRef = useRef<HTMLInputElement | null>(null)
+  // Drag-over overlay: dragenter/dragleave fire on every child element, so a
+  // bare boolean flickers. Count enters minus leaves; overlay shows when > 0.
+  const dragCounter = useRef(0)
+  const [isDragging, setIsDragging] = useState(false)
 
   // Initial load: edit mode hydrates from API; otherwise route param > existing > new.
   useEffect(() => {
@@ -210,23 +235,81 @@ export function WritePage() {
     view.focus()
   }
 
-  const uploadAndInsert = async (file: File) => {
-    if (authMode !== 'authed') {
-      toast.error('请先登录再上传图片')
+  // Insert plain text at the current caret (or end-of-doc fallback) and leave
+  // the caret right after the inserted text. Used for sequential multi-file
+  // uploads: each insert reads the live selection and chains the caret forward,
+  // so awaiting between files never inserts at a stale offset (plan §6).
+  const insertAtCursor = (text: string) => {
+    const view = editorViewRef.current
+    if (!view) {
+      onContentChange(`${draft.content}${text}`)
       return
     }
-    const t = toast.loading('图片上传中…')
+    const sel = view.state.selection.main
+    view.dispatch({
+      changes: { from: sel.from, to: sel.to, insert: text },
+      selection: { anchor: sel.from + text.length },
+    })
+    view.focus()
+  }
+
+  // Upload a single file (image → ![](url); doc → [name](url)) and insert it
+  // at the caret. Returns true on success. Size guard mirrors backend
+  // MAX_UPLOAD_BYTES so oversized files fail fast without a round-trip.
+  const uploadOne = async (file: File): Promise<boolean> => {
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast.error(`「${file.name}」超过 ${formatBytes(MAX_UPLOAD_BYTES)} 上限`)
+      return false
+    }
     try {
-      const { url } = await uploadsApi.uploadNoteImage(file)
-      onMarkdownInsert(`![](${url})`)
-      toast.success('已插入图片', { id: t })
+      if (isImageFile(file)) {
+        const { url } = await uploadsApi.uploadNoteImage(file)
+        insertAtCursor(`![](${url})`)
+      } else {
+        const { url, filename } = await uploadsApi.uploadNoteFile(file)
+        // 前导/尾随换行让附件 [name](url) 自成一段 → 渲染为块级 FileCard。
+        insertAtCursor(`\n[${filename}](${url})\n`)
+      }
+      return true
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : '上传失败'
-      toast.error(msg, { id: t })
+      const msg = e instanceof ApiError ? e.message : `「${file.name}」上传失败`
+      toast.error(msg)
+      return false
+    }
+  }
+
+  // Upload a batch sequentially (single loading toast, one summary toast — no
+  // concurrent-toast spam). A failed file is reported but does not abort the
+  // rest of the batch.
+  const uploadAndInsert = async (files: File[]) => {
+    if (authMode !== 'authed') {
+      toast.error('请先登录再上传')
+      return
+    }
+    const accepted = files.filter((f) => isImageFile(f) || isDocFile(f))
+    if (accepted.length === 0) return
+
+    const t = toast.loading(accepted.length > 1 ? `上传中… (0/${accepted.length})` : '上传中…')
+    let ok = 0
+    for (let i = 0; i < accepted.length; i += 1) {
+      const file = accepted[i]
+      if (!file) continue
+      if (accepted.length > 1) {
+        toast.loading(`上传中… (${i}/${accepted.length})`, { id: t })
+      }
+      if (await uploadOne(file)) ok += 1
+    }
+    if (ok === accepted.length) {
+      toast.success(ok > 1 ? `已插入 ${ok} 个文件` : '已插入', { id: t })
+    } else if (ok > 0) {
+      toast.warning(`已插入 ${ok}/${accepted.length} 个文件`, { id: t })
+    } else {
+      toast.error('上传失败', { id: t })
     }
   }
 
   const onPickImage = () => fileInputRef.current?.click()
+  const onPickFile = () => docInputRef.current?.click()
 
   const onAcceptAll = () => {
     if (!active) return
@@ -351,6 +434,7 @@ export function WritePage() {
           compose('polish', selection.text)
         }}
         onPickImage={onPickImage}
+        onPickFile={onPickFile}
       />
 
       <input
@@ -360,8 +444,21 @@ export function WritePage() {
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0]
-          if (f) void uploadAndInsert(f)
+          if (f) void uploadAndInsert([f])
           // Reset so re-selecting the same file fires onChange again.
+          e.target.value = ''
+        }}
+      />
+
+      <input
+        ref={docInputRef}
+        type="file"
+        multiple
+        accept={DOC_ACCEPT}
+        className="hidden"
+        onChange={(e) => {
+          const files = Array.from(e.target.files ?? [])
+          if (files.length) void uploadAndInsert(files)
           e.target.value = ''
         }}
       />
@@ -388,7 +485,35 @@ export function WritePage() {
               ref={(el) => {
                 editorScrollRef.current = el?.querySelector('.cm-scroller') ?? el
               }}
-              className="h-full min-w-0 border-r border-border"
+              className="relative h-full min-w-0 border-r border-border"
+              onDragEnter={(e) => {
+                if (!Array.from(e.dataTransfer.types).includes('Files')) return
+                dragCounter.current += 1
+                setIsDragging(true)
+              }}
+              onDragOver={(e) => {
+                // Required so the drop event fires (also shows the copy cursor).
+                if (Array.from(e.dataTransfer.types).includes('Files')) e.preventDefault()
+              }}
+              onDragLeave={() => {
+                dragCounter.current = Math.max(0, dragCounter.current - 1)
+                if (dragCounter.current === 0) setIsDragging(false)
+              }}
+              onDrop={(e) => {
+                dragCounter.current = 0
+                setIsDragging(false)
+                // CodeMirror's own drop handler already handled (and uploaded)
+                // files dropped onto the text area — it calls preventDefault, so
+                // we only take over drops onto the padding / empty area here.
+                if (e.defaultPrevented) return
+                const files = Array.from(e.dataTransfer.files).filter(
+                  (f) => isImageFile(f) || isDocFile(f),
+                )
+                if (files.length) {
+                  e.preventDefault()
+                  void uploadAndInsert(files)
+                }
+              }}
             >
               <MarkdownEditor
                 value={draft.content}
@@ -398,13 +523,18 @@ export function WritePage() {
                   editorViewRef.current = v
                 }}
                 onPasteFiles={(files) => {
-                  if (files[0]) void uploadAndInsert(files[0])
+                  void uploadAndInsert(files)
                 }}
                 onDropFiles={(files) => {
-                  if (files[0]) void uploadAndInsert(files[0])
+                  void uploadAndInsert(files)
                 }}
                 className="h-full"
               />
+              {isDragging && (
+                <div className="pointer-events-none absolute inset-2 z-10 flex items-center justify-center rounded-md border-2 border-dashed border-cat-kaggle bg-tag-kaggle/60 text-sm font-medium text-cat-kaggle">
+                  松开以上传图片或附件
+                </div>
+              )}
             </div>
           </Panel>
         )}

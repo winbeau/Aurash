@@ -8,6 +8,7 @@ import {
   Code,
   Link as LinkIcon,
   Image as ImageIcon,
+  Paperclip,
   Hash,
   Sparkles,
   Eye,
@@ -40,6 +41,8 @@ type Props = {
   onPolish: () => void
   /** Open the OS file picker to upload an image into the editor. */
   onPickImage: () => void
+  /** Open the OS file picker to upload a document attachment into the editor. */
+  onPickFile: () => void
 }
 
 export function SubToolbar({
@@ -57,6 +60,7 @@ export function SubToolbar({
   canPolish,
   onPolish,
   onPickImage,
+  onPickFile,
 }: Props) {
   const [tagInput, setTagInput] = useState('')
 
@@ -94,6 +98,9 @@ export function SubToolbar({
       </ToolButton>
       <ToolButton aria-label="插入图片" onClick={onPickImage}>
         <ImageIcon size={12} aria-hidden />
+      </ToolButton>
+      <ToolButton aria-label="上传附件" onClick={onPickFile}>
+        <Paperclip size={12} aria-hidden />
       </ToolButton>
 
       <span className="mx-2 h-4 w-px bg-border" aria-hidden />

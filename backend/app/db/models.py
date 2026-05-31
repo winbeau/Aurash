@@ -10,6 +10,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     ForeignKey,
     Integer,
@@ -190,4 +191,119 @@ class LoginEvent(Base):
     user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+
+
+class MaterialResource(Base):
+    """A shared course-material resource — a card on the `/materials` page.
+
+    The resource is the top-level container; its files/folders live in
+    `MaterialFile` as a self-referential recursive tree. `deleted` is a
+    soft-delete flag (recoverable / auditable); physical files are unlinked
+    at DELETE time to avoid orphans on disk.
+
+    House rules (mirroring Note/Like): relationships are `lazy="raise"` +
+    `passive_deletes=True` + DB `ondelete='CASCADE'`. We never use
+    `cascade="all, delete-orphan"` — the DB drives the cascade.
+    """
+
+    __tablename__ = "material_resources"
+
+    # uuid hex (no dashes) PK — same convention as Note/Draft string ids.
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    # 'New' | 'Hot' | 'Rec' (nullable) — drives the corner badge on the card.
+    tag: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    owner_sid: Mapped[str] = mapped_column(
+        ForeignKey("users.sid", ondelete="CASCADE"), nullable=False, index=True
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    deleted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    owner: Mapped[User] = relationship(lazy="joined")
+    # passive_deletes=True: rely on DB-level ondelete='CASCADE' rather than
+    # SQLAlchemy NULLing FKs first. lazy='raise' forbids implicit IO — the
+    # tree is assembled by a flat SELECT + Python grouping in the service.
+    files: Mapped[list[MaterialFile]] = relationship(
+        back_populates="resource", lazy="raise", passive_deletes=True
+    )
+
+
+class MaterialFile(Base):
+    """A file or folder inside a `MaterialResource` (self-referential tree).
+
+    `is_folder` distinguishes the two: folders are pure DB rows (no disk
+    object), files carry `url`/`storage_path`/`ext`/`mime`/`size_bytes`.
+    `parent_id` is NULL at the resource root and otherwise points at the
+    enclosing folder (also a `MaterialFile`). `sort_order` is 0..n within a
+    `(resource_id, parent_id)` sibling scope.
+
+    Name uniqueness within a `(resource_id, parent_id)` scope is enforced in
+    the service layer via `SELECT WHERE deleted=False` (NOT a DB
+    UniqueConstraint — SQLite treats NULL parent_id rows as mutually
+    distinct, which would miss root-level dup detection).
+    """
+
+    __tablename__ = "material_files"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    resource_id: Mapped[str] = mapped_column(
+        ForeignKey("material_resources.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Self FK — root-level nodes have NULL parent_id. Deleting a folder row
+    # cascades to its descendants at the DB level.
+    parent_id: Mapped[str | None] = mapped_column(
+        ForeignKey("material_files.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_folder: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Lowercased extension (no dot) — drives icon + preview routing. NULL/""
+    # for folders.
+    ext: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    mime: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Absolute URL: `${public_base_url}/uploads/materials/<sid>/<rid>/<file>`.
+    url: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    # Relative on-disk path (physical delete / locate). NULL for folders.
+    storage_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    deleted: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    resource: Mapped[MaterialResource] = relationship(
+        back_populates="files", lazy="raise"
+    )
+    # Self-referential tree. remote_side ties `parent` to the row whose `id`
+    # equals this row's `parent_id`. passive_deletes=True + DB CASCADE drives
+    # subtree deletion; lazy='raise' forbids implicit traversal (the service
+    # builds the tree from a flat SELECT, never via .children/.parent).
+    parent: Mapped[MaterialFile | None] = relationship(
+        back_populates="children",
+        remote_side=[id],
+        lazy="raise",
+    )
+    children: Mapped[list[MaterialFile]] = relationship(
+        back_populates="parent",
+        lazy="raise",
+        passive_deletes=True,
     )

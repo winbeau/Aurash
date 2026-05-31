@@ -6,6 +6,8 @@ import rehypeHighlight from 'rehype-highlight'
 import rehypeKatex from 'rehype-katex'
 import rehypeRaw from 'rehype-raw'
 import { CodeBlock } from './CodeBlock'
+import { FileCard } from './FileCard'
+import { isAttachmentHref } from '@/lib/fileTypes'
 import { cn } from '@/lib/cn'
 
 /**
@@ -53,6 +55,13 @@ const components: Components = {
     if (HREF_PLACEHOLDER.test(resolvedHref)) {
       const text = nodeToText(children).trim()
       if (URL_LIKE.test(text)) resolvedHref = text
+    }
+    // 文档附件链接（`[文件名.ext](/uploads/...)`）渲染成 FileCard（块级、带
+    // data-filecard，含预览/下载/新窗口），而非普通 <a>。
+    if (isAttachmentHref(resolvedHref)) {
+      const last = resolvedHref.split('#')[0]?.split('?')[0]?.split('/').pop() ?? ''
+      const filename = nodeToText(children).trim() || last
+      return <FileCard href={resolvedHref} filename={filename} />
     }
     const external = /^https?:\/\//i.test(resolvedHref)
     return (
