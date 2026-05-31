@@ -1,8 +1,11 @@
+import type * as React from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Maximize2, ZoomIn, ZoomOut } from 'lucide-react'
 
 import { resolveAssetUrl } from '@/api/client'
 import { Button } from '@/components/ui/button'
+import { FileTypeIcon } from '@/components/common/FileTypeIcon'
+import { extOf } from '@/lib/fileTypes'
 import { ZOOM_MAX, ZOOM_MIN, usePreviewZoom } from './usePreviewZoom'
 
 /**
@@ -21,9 +24,11 @@ type Props = {
   url: string
   name: string
   fileId?: string | undefined
+  /** 头部右侧动作槽（下载 / 新窗口等，由父级注入）。 */
+  headerActions?: React.ReactNode
 }
 
-export default function ImageViewer({ url, name, fileId }: Props) {
+export default function ImageViewer({ url, name, fileId, headerActions }: Props) {
   const { zoom, setZoom, zoomIn, zoomOut } = usePreviewZoom('image', fileId ?? url, 1)
   const [loading, setLoading] = useState(true)
   const [errored, setErrored] = useState(false)
@@ -64,48 +69,55 @@ export default function ImageViewer({ url, name, fileId }: Props) {
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      {/* 缩放工具栏 */}
-      <div className="flex shrink-0 items-center justify-center gap-1 border-b border-border-strong bg-bg-subtle px-2 py-1.5">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={zoomOut}
-          aria-label="缩小"
-          title="缩小"
-        >
-          <ZoomOut className="h-4 w-4" />
-        </Button>
-        <span className="w-12 text-center text-xs tabular-nums text-text-muted">
-          {Math.round(zoom * 100)}%
+      {/* 单行头部：图标 + 文件名 + 缩放组 + 动作槽（下载/新窗口由父级注入）。 */}
+      <div className="flex shrink-0 items-center gap-2 border-b border-border-strong bg-bg-subtle px-3 py-2 pr-10">
+        <FileTypeIcon ext={extOf(name) || extOf(url)} className="size-5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-text" title={name}>
+          {name}
         </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={zoomIn}
-          aria-label="放大"
-          title="放大"
-        >
-          <ZoomIn className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={autoFit}
-          aria-label="适应窗口"
-          title="适应窗口"
-        >
-          <Maximize2 className="h-4 w-4" />
-        </Button>
-        <span className="ml-2 text-xs text-text-faint">Ctrl + 滚轮缩放</span>
+        <span className="hidden text-xs text-text-faint lg:inline">Ctrl + 滚轮缩放</span>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={zoomOut}
+            aria-label="缩小"
+            title="缩小"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <span className="w-11 text-center text-xs tabular-nums text-text-muted">
+            {Math.round(zoom * 100)}%
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={zoomIn}
+            aria-label="放大"
+            title="放大"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={autoFit}
+            aria-label="适应窗口"
+            title="适应窗口"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+        </div>
+        {headerActions}
       </div>
 
-      {/* 滚动区 */}
+      {/* 滚动区（暖近白衬底）。 */}
       <div
         ref={scrollRef}
-        className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-transparent p-4"
+        className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-bg-subtle p-4"
       >
         <img
           ref={imgRef}

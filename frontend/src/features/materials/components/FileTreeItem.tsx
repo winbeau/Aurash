@@ -242,22 +242,18 @@ export function FileTreeItem({
 /**
  * sortable-tree 投影指示线（Notion 蓝 #a5c9f2，2px）。
  * - `edge`：top=before(行顶) / bottom=after(行底) / inside=该文件夹首子位置(行底)。
- * - `depth`：projectedDepth，左缘 = depth * INDENT_PX + 8（与行 paddingLeft 对齐），
- *   带一个小圆点锚点，呈 Notion/Outliner 缩进指示风格。
+ * - `depth`：projectedDepth，左缘 = depth * INDENT_PX + 8（与行 paddingLeft 对齐）。
  */
 function DropLine({ edge, depth }: { edge: DropLineEdge; depth: number }) {
   return (
     <span
       aria-hidden
       className={cn(
-        'pointer-events-none absolute right-1 z-10 flex h-[2px] items-center',
+        'pointer-events-none absolute right-1 z-10 h-[2px] rounded-full bg-[#a5c9f2]',
         // inside 与 after 同样画在行底（成为该夹首子，视觉落在其下沿）。
         edge === 'top' ? '-top-px' : '-bottom-px',
       )}
       style={{ left: depth * INDENT_PX + 8 }}
-    >
-      <span className="h-[6px] w-[6px] shrink-0 rounded-full bg-[#a5c9f2]" />
-      <span className="h-[2px] flex-1 rounded-full bg-[#a5c9f2]" />
-    </span>
+    />
   )
 }

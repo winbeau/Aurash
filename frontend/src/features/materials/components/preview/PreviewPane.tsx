@@ -46,45 +46,46 @@ function PreviewBody({ file }: { file: PreviewTarget }) {
   const ext = extOf(file.name) || extOf(file.url)
   const kind = previewKind(ext)
 
-  return (
-    <>
-      {/* 信息栏：文件名 + 下载 */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-border-strong bg-bg-subtle px-4 py-2.5">
-        <FileTypeIcon ext={ext} className="size-5 shrink-0" />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium text-text" title={file.name}>
-          {file.name}
-        </span>
-        <DownloadButton fileId={file.fileId} name={file.name} />
-      </header>
+  // 下载按钮作为 headerActions 注入各 viewer 的单行头部（资料页无新窗口）；
+  // 不再渲染独立信息栏，文件名/图标由 viewer 头部承担。
+  const headerActions = <DownloadButton fileId={file.fileId} name={file.name} />
 
-      {/* 预览主体：lazy viewer + Suspense + ErrorBoundary 兜底（key 换文件重挂）。 */}
-      <div className="min-h-0 flex-1">
-        <PreviewErrorBoundary
-          key={file.fileId}
-          fallback={<UnsupportedCard file={file} kind={kind} failed />}
-        >
-          <React.Suspense fallback={<CenteredSpinner />}>
-            <Viewer file={file} kind={kind} />
-          </React.Suspense>
-        </PreviewErrorBoundary>
-      </div>
-    </>
+  return (
+    // 预览主体：lazy viewer + Suspense + ErrorBoundary 兜底（key 换文件重挂）。
+    <div className="min-h-0 flex-1">
+      <PreviewErrorBoundary
+        key={file.fileId}
+        fallback={<UnsupportedCard file={file} kind={kind} failed />}
+      >
+        <React.Suspense fallback={<CenteredSpinner />}>
+          <Viewer file={file} kind={kind} headerActions={headerActions} />
+        </React.Suspense>
+      </PreviewErrorBoundary>
+    </div>
   )
 }
 
 /** 按 kind 路由到共享 viewer；unsupported → 降级下载卡。 */
-function Viewer({ file, kind }: { file: PreviewTarget; kind: PreviewKind }) {
+function Viewer({
+  file,
+  kind,
+  headerActions,
+}: {
+  file: PreviewTarget
+  kind: PreviewKind
+  headerActions: React.ReactNode
+}) {
   switch (kind) {
     case 'pdf':
-      return <PdfViewer url={file.url} name={file.name} fileId={file.fileId} />
+      return <PdfViewer url={file.url} name={file.name} fileId={file.fileId} headerActions={headerActions} />
     case 'docx':
-      return <DocxViewer url={file.url} name={file.name} fileId={file.fileId} />
+      return <DocxViewer url={file.url} name={file.name} fileId={file.fileId} headerActions={headerActions} />
     case 'xlsx':
-      return <ExcelViewer url={file.url} name={file.name} fileId={file.fileId} />
+      return <ExcelViewer url={file.url} name={file.name} fileId={file.fileId} headerActions={headerActions} />
     case 'image':
-      return <ImageViewer url={file.url} name={file.name} fileId={file.fileId} />
+      return <ImageViewer url={file.url} name={file.name} fileId={file.fileId} headerActions={headerActions} />
     case 'code':
-      return <CodeViewer url={file.url} name={file.name} fileId={file.fileId} />
+      return <CodeViewer url={file.url} name={file.name} fileId={file.fileId} headerActions={headerActions} />
     default:
       return <UnsupportedCard file={file} kind={kind} />
   }

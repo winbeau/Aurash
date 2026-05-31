@@ -181,6 +181,13 @@ async def upload_files(
     `save_upload` (50 MB cap, magic-byte sniff, deny-list), then a
     `MaterialFile` row is appended at the end of the target scope. Returns the
     freshly built tree so the client can re-render in one round-trip.
+
+    Same-name uploads do **not** 409: a previously stuck-but-successful upload
+    may have squatted the name, so we auto-rename the new file to the first free
+    ``基名 (n).ext`` variant (`svc.unique_upload_name`). Each row is flushed
+    before the next file is processed so the probe sees in-batch siblings too
+    (two identical names in one request → ``x.pdf`` + ``x (1).pdf``). Folder
+    create/rename keep their 409 — only uploads auto-rename.
     """
     resource = await svc.get_resource_or_404(db, rid)
     svc.ensure_owner(resource, user)
@@ -196,7 +203,9 @@ async def upload_files(
 
     for upload in files:
         display_name = svc.clean_name(upload.filename)
-        await svc.assert_name_free(db, rid, folder_id, display_name)
+        display_name = await svc.unique_upload_name(
+            db, rid, folder_id, display_name
+        )
         saved = await save_upload(upload, dest_dir)
         db.add(
             MaterialFile(
@@ -213,6 +222,9 @@ async def upload_files(
                 sort_order=order,
             )
         )
+        # Flush so the next iteration's `unique_upload_name` probe sees this
+        # just-added sibling (same-name files in a single multi-file request).
+        await db.flush()
         order += 1
 
     await db.commit()

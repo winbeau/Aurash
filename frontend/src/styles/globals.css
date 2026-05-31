@@ -262,3 +262,20 @@
 .conf-tbl-wrap::-webkit-scrollbar-thumb:hover {
   background: var(--line-strong);
 }
+
+/* ==========================================================================
+   docx-preview viewer — override render-time injected wrapper styling
+   ----------------------------------------------------------------------------
+   docx-preview 在渲染时往容器内注入一段 <style>，其中 `.docx-wrapper{background:gray}`
+   把页面衬底画成灰色、`section.docx` 带很重的默认阴影。这些是 render-time 注入的
+   局部样式，外部全局 CSS 可覆盖（故意放在 @layer 之外、用 !important 压过注入值），
+   让衬底用我们的暖近白 token、阴影改为轻量卡片阴影，与各 viewer 滚动区 bg-bg-subtle 一致。
+   ========================================================================== */
+.docx-wrapper {
+  background: var(--color-bg-subtle) !important;
+}
+.docx-wrapper > section.docx {
+  /* !important 同 background：docx-preview 的注入 <style> 在文档序中晚于本表、
+     选择器同特异度，不加 !important 会被其重默认阴影压回。 */
+  box-shadow: var(--shadow-card) !important;
+}

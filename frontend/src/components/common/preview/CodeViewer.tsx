@@ -1,9 +1,12 @@
+import type * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { Check, Copy, Loader2 } from 'lucide-react'
 import 'highlight.js/styles/github.css'
 
 import { resolveAssetUrl } from '@/api/client'
 import { Button } from '@/components/ui/button'
+import { FileTypeIcon } from '@/components/common/FileTypeIcon'
+import { extOf } from '@/lib/fileTypes'
 
 /**
  * CodeViewer —— 纯文本 / 代码预览：fetch 文本 → highlight.js `highlightAuto` → `<pre>`。
@@ -21,12 +24,14 @@ type Props = {
   url: string
   name: string
   fileId?: string | undefined
+  /** 头部右侧动作槽（下载 / 新窗口等，由父级注入）。 */
+  headerActions?: React.ReactNode
 }
 
 /** highlight 输入上限：超过则截断（仅预览，完整内容走下载）。 */
 const MAX_TEXT_CHARS = 500_000
 
-export default function CodeViewer({ url, name }: Props) {
+export default function CodeViewer({ url, name, headerActions }: Props) {
   const [loading, setLoading] = useState(true)
   const [html, setHtml] = useState('')
   const [truncated, setTruncated] = useState(false)
@@ -84,26 +89,30 @@ export default function CodeViewer({ url, name }: Props) {
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
-      {/* 工具栏 */}
-      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border-strong bg-bg-subtle px-3 py-1.5">
-        <span className="truncate text-xs text-text-faint">
+      {/* 单行头部（无缩放，保留复制）：图标 + 文件名 + 复制 + 动作槽。 */}
+      <div className="flex shrink-0 items-center gap-2 border-b border-border-strong bg-bg-subtle px-3 py-2 pr-10">
+        <FileTypeIcon ext={extOf(name) || extOf(url)} className="size-5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-text" title={name}>
           {name}
-          {truncated && '（预览已截断，完整内容请下载）'}
+          {truncated && (
+            <span className="ml-1 font-normal text-text-faint">（预览已截断，完整内容请下载）</span>
+          )}
         </span>
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 gap-1.5 px-2 text-xs"
+          className="h-7 shrink-0 gap-1.5 px-2 text-xs"
           onClick={onCopy}
           disabled={loading || !rawTextRef.current}
         >
           {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
           {copied ? '已复制' : '复制'}
         </Button>
+        {headerActions}
       </div>
 
-      {/* 滚动区 */}
-      <div className="min-h-0 flex-1 overflow-auto bg-transparent">
+      {/* 滚动区（暖近白衬底）。 */}
+      <div className="min-h-0 flex-1 overflow-auto bg-bg-subtle">
         <pre className="hljs m-0 p-4 text-xs leading-relaxed">
           <code dangerouslySetInnerHTML={{ __html: html }} />
         </pre>

@@ -42,7 +42,8 @@ import type { FolderOption } from '../types'
  * - 目标文件夹 Select（getAllFolders 拼好的层级 path；根级为「资源根目录」）。
  * - idle / uploading / success / error 四态 + ui/progress。上传走 XHR（api/upload），
  *   出**真实逐字节进度**：uploading 显示百分比；字节发完后 phase='processing'，进度条
- *   满 + 文案「已发送，等待服务器确认…」（CF/nginx 缓冲响应尾延迟）；success 后 100%。
+ *   转**不确定态**（固定一段 + animate-pulse）+ 文案「服务器接收中…」——此时数据正经
+ *   CF 隧道传到源站、服务器接收/落盘，故不满条以免给「已完成」错觉；success 后 100%。
  * - 上传走 hook 层 useUploadFiles（toast 在 hook 内，不在本渲染期调用，MEMORY 警示）。
  * - 单文件超 MAX_UPLOAD_BYTES（50MB）前端先拦（标红 + 禁上传），后端再兜底 413。
  * - 上传成功自动关闭；失败保留弹窗（保留待传清单）+ 错误态供重试。
@@ -344,22 +345,26 @@ export function UploadDialog({
           {/* 四态反馈 */}
           {uploading ? (
             <div className="space-y-1.5" aria-live="polite">
-              {/* 真实进度：ratio 已知 → 百分比；processing 阶段 → 满条。
-                  ratio 仍为 null（lengthComputable=false）→ 退回不确定动画条。 */}
+              {/* 真实进度：uploading 且 ratio 已知 → 百分比。
+                  processing 阶段（字节已发完、经 CF 隧道传到源站、服务器接收/落盘中）→
+                  不确定态：固定一段(66%) + animate-pulse 脉动，既显「仍在进行」又不满条
+                  给「已完成」错觉。ratio 仍为 null（lengthComputable=false）→ 同样退回不确定动画条。 */}
               <Progress
                 value={
-                  progress?.phase === 'processing'
-                    ? 100
-                    : progress?.ratio != null
-                      ? Math.round(progress.ratio * 100)
-                      : null
+                  progress?.phase === 'processing' || progress?.ratio == null
+                    ? 66
+                    : Math.round(progress.ratio * 100)
                 }
-                className={progress?.ratio == null && progress?.phase !== 'processing' ? 'animate-pulse' : undefined}
+                className={
+                  progress?.phase === 'processing' || progress?.ratio == null
+                    ? 'animate-pulse'
+                    : undefined
+                }
               />
               {progress?.phase === 'processing' ? (
                 <p className="flex items-center gap-1.5 text-xs text-text-muted">
                   <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
-                  已发送，等待服务器确认…
+                  服务器接收中…
                 </p>
               ) : (
                 <p className="flex items-center justify-between gap-1.5 text-xs text-text-muted">

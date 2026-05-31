@@ -193,10 +193,21 @@ export function projectDrop({ dragId, overId, offsetX, flat }: ProjectArgs): Dro
 
   // 去掉被拖项后的可见列表 = 真正的落点参考序列（与 dnd-kit arrayMove 语义一致）。
   const items = flat.filter((f) => f.id !== dragId)
-  // over 在去掉 drag 后的列表中的位置：drag 原本在 over 之前则索引左移一位。
-  let insertIndex = items.findIndex((f) => f.id === overId)
-  if (insertIndex < 0) return null
-  if (dragIndex < overIndex) insertIndex += 1
+
+  // 落点行号（在去-drag 列表里的插入位）。
+  let insertIndex: number
+  if (overId === dragId) {
+    // 自身-over 帧：dnd-kit 在指针回到被拖项原槽位时会把 over 报成 drag 自身。
+    // 不能 return null（会让 onDragEnd 静默丢弃落点 → 位置不变），改用被拖项原视觉
+    // 槽位推 insertIndex —— 把 dragIndex 映射到「去掉 drag 后」列表的等效位置：
+    // drag 之前的项数即被拖项原本所在的等效插入槽，clamp 到 [0, items.length]。
+    insertIndex = Math.max(0, Math.min(dragIndex, items.length))
+  } else {
+    // over 在去掉 drag 后的列表中的位置：drag 原本在 over 之前则索引左移一位。
+    insertIndex = items.findIndex((f) => f.id === overId)
+    if (insertIndex < 0) return null
+    if (dragIndex < overIndex) insertIndex += 1
+  }
 
   const prevItem = items[insertIndex - 1] ?? null
   const nextItem = items[insertIndex] ?? null

@@ -4,7 +4,6 @@ import { Download, ExternalLink, Loader2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -45,28 +44,28 @@ export function FilePreviewDialog({ open, onOpenChange, url, name, fileId }: Pro
   const ext = extOf(name) || extOf(url)
   const kind = previewKind(ext)
 
+  // 下载 + 新窗口作为 headerActions 注入各 viewer 的单行头部（不再有独立的可见头部）。
+  const headerActions = (
+    <div className="flex shrink-0 items-center gap-1">
+      <DownloadButton url={url} name={name} />
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        aria-label="在新窗口打开"
+        title="在新窗口打开"
+        onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
+      >
+        <ExternalLink className="h-4 w-4" />
+      </Button>
+    </div>
+  )
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex h-[85vh] max-h-[85vh] w-[92vw] max-w-4xl flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="flex flex-row items-center gap-3 space-y-0 border-b border-border-strong px-4 py-3 pr-12 text-left">
-          <FileTypeIcon ext={ext} className="size-6 shrink-0" />
-          <DialogTitle className="min-w-0 flex-1 truncate text-sm font-medium" title={name}>
-            {name}
-          </DialogTitle>
-          <div className="flex shrink-0 items-center gap-1">
-            <DownloadButton url={url} name={name} />
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              aria-label="在新窗口打开"
-              title="在新窗口打开"
-              onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
-            >
-              <ExternalLink className="h-4 w-4" />
-            </Button>
-          </div>
-        </DialogHeader>
+        {/* 标题仅供 a11y（屏幕阅读器）；可见的文件名由 viewer 头部承担。 */}
+        <DialogTitle className="sr-only">{name}</DialogTitle>
 
         {/* 预览主体：只在 open 时挂载 viewer（关闭即卸载、释放资源 + 重置 ErrorBoundary）。 */}
         <div className="min-h-0 flex-1">
@@ -77,6 +76,7 @@ export function FilePreviewDialog({ open, onOpenChange, url, name, fileId }: Pro
               name={name}
               fileId={fileId}
               onDownloadUrl={url}
+              headerActions={headerActions}
             />
           )}
         </div>
@@ -92,12 +92,14 @@ function PreviewBody({
   name,
   fileId,
   onDownloadUrl,
+  headerActions,
 }: {
   kind: PreviewKind
   url: string
   name: string
   fileId?: string | undefined
   onDownloadUrl: string
+  headerActions: React.ReactNode
 }) {
   if (kind === 'unsupported') {
     return <UnsupportedCard url={onDownloadUrl} name={name} />
@@ -106,15 +108,15 @@ function PreviewBody({
   const viewer = (() => {
     switch (kind) {
       case 'pdf':
-        return <PdfViewer url={url} name={name} fileId={fileId} />
+        return <PdfViewer url={url} name={name} fileId={fileId} headerActions={headerActions} />
       case 'docx':
-        return <DocxViewer url={url} name={name} fileId={fileId} />
+        return <DocxViewer url={url} name={name} fileId={fileId} headerActions={headerActions} />
       case 'xlsx':
-        return <ExcelViewer url={url} name={name} fileId={fileId} />
+        return <ExcelViewer url={url} name={name} fileId={fileId} headerActions={headerActions} />
       case 'image':
-        return <ImageViewer url={url} name={name} fileId={fileId} />
+        return <ImageViewer url={url} name={name} fileId={fileId} headerActions={headerActions} />
       case 'code':
-        return <CodeViewer url={url} name={name} fileId={fileId} />
+        return <CodeViewer url={url} name={name} fileId={fileId} headerActions={headerActions} />
       default:
         return null
     }

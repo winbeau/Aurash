@@ -342,19 +342,23 @@ async def test_create_folder_duplicate_name_409(
     assert r.status_code == 409
 
 
-async def test_root_level_duplicate_name_detected(
+async def test_root_level_duplicate_upload_auto_renamed(
     client: AsyncClient, auth_headers: dict[str, str]
 ) -> None:
-    """Root-level (parent_id IS NULL) dup names are caught (SQLite NULL trap)."""
+    """Root-level (parent_id IS NULL) same-name upload auto-renames, never 409.
+
+    A previously stuck-but-successful upload may already hold the name, so a
+    re-upload of the same root-level name must succeed as ``讲义 (1).pdf``
+    rather than blocking the user with a 409 (folder create still 409s).
+    """
     rid = await _create_resource(client, auth_headers)
     await _upload(client, auth_headers, rid, "讲义.pdf", _pdf_bytes(), "application/pdf")
-    # Second upload of same root-level name -> 409.
-    r = await client.post(
-        f"/materials/resources/{rid}/files",
-        files={"files": ("讲义.pdf", _pdf_bytes(), "application/pdf")},
-        headers=auth_headers,
+    # Second upload of the same root-level name -> 200 + auto-renamed.
+    tree = await _upload(
+        client, auth_headers, rid, "讲义.pdf", _pdf_bytes(), "application/pdf"
     )
-    assert r.status_code == 409
+    names = {n["name"] for n in tree}
+    assert names == {"讲义.pdf", "讲义 (1).pdf"}
 
 
 # ---------------------------------------------------------------------------
@@ -380,6 +384,34 @@ async def test_upload_writes_disk_and_url(
     fname = node["url"].rsplit("/", 1)[-1]
     on_disk = _isolate_uploads / "materials" / "20211010001" / rid / fname
     assert on_disk.is_file()
+
+
+async def test_upload_duplicate_name_auto_renamed(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    """Uploading the same name twice keeps both: ``x.pdf`` + ``x (1).pdf``.
+
+    Regression for the "stuck-but-successful upload squats the name → re-upload
+    409s" bug: uploads must auto-rename (extension preserved, base gets `` (n)``)
+    until unique, and a third upload bumps to ``x (2).pdf``.
+    """
+    rid = await _create_resource(client, auth_headers)
+    await _upload(client, auth_headers, rid, "x.pdf", _pdf_bytes(), "application/pdf")
+    tree = await _upload(
+        client, auth_headers, rid, "x.pdf", _pdf_bytes(), "application/pdf"
+    )
+    names = {n["name"] for n in tree}
+    # Both files present; second auto-renamed with the extension preserved.
+    assert "x.pdf" in names
+    assert "x (1).pdf" in names
+    assert len([n for n in tree if not n["isFolder"]]) == 2
+
+    # A third upload of the same name bumps to (2).
+    tree = await _upload(
+        client, auth_headers, rid, "x.pdf", _pdf_bytes(), "application/pdf"
+    )
+    names = {n["name"] for n in tree}
+    assert names == {"x.pdf", "x (1).pdf", "x (2).pdf"}
 
 
 async def test_upload_into_folder(

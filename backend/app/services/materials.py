@@ -20,6 +20,7 @@ Responsibilities:
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -281,6 +282,58 @@ async def assert_name_free(
     stmt = select(MaterialFile.id).where(*conds).limit(1)
     if (await db.execute(stmt)).first() is not None:
         raise HTTPException(status_code=409, detail="同目录下已存在同名文件")
+
+
+async def _name_taken(
+    db: AsyncSession,
+    rid: str,
+    parent_id: str | None,
+    name: str,
+) -> bool:
+    """True iff `name` is already used by a live file in the `(rid, parent_id)` scope.
+
+    Shares the exact scope predicate of `assert_name_free` (resource +
+    ``deleted=False`` + the SQLite-NULL-safe root expression) — the only
+    difference is it returns a bool instead of raising 409, so the auto-rename
+    loop can probe candidate names.
+    """
+    conds = [
+        MaterialFile.resource_id == rid,
+        MaterialFile.deleted == False,  # noqa: E712
+        MaterialFile.name == name,
+    ]
+    if parent_id is None:
+        conds.append(MaterialFile.parent_id.is_(None))
+    else:
+        conds.append(MaterialFile.parent_id == parent_id)
+    stmt = select(MaterialFile.id).where(*conds).limit(1)
+    return (await db.execute(stmt)).first() is not None
+
+
+async def unique_upload_name(
+    db: AsyncSession,
+    rid: str,
+    parent_id: str | None,
+    name: str,
+) -> str:
+    """Return `name`, or the first free ``基名 (n).ext`` variant in the scope.
+
+    Upload-only de-duplication (plan: a previously stuck-but-successful upload
+    can squat a name, so a same-name re-upload must not 409). When `name` is
+    free in the ``(rid, parent_id)`` scope it is returned verbatim; otherwise we
+    append `` (1)``, `` (2)``, … to the base (extension preserved) and return
+    the first variant not already taken by a live row. Folder create/rename keep
+    their 409 — only uploads call this.
+    """
+    if not await _name_taken(db, rid, parent_id, name):
+        return name
+    base, ext = os.path.splitext(name)  # ext keeps its leading dot (or "")
+    counter = 1
+    while True:
+        candidate = f"{base} ({counter}){ext}"
+        if not await _name_taken(db, rid, parent_id, candidate):
+            return candidate
+        counter += 1
 
 
 async def next_sort_order(

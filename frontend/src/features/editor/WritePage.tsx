@@ -259,7 +259,7 @@ export function WritePage() {
   //
   // `toastId` (when given) is the shared loading toast from uploadAndInsert: the
   // doc branch uploads via XHR with real byte progress and updates that one
-  // toast in place (`文件上传中… NN%` → 处理中…), so the user sees movement on
+  // toast in place (`文件上传中… NN%` → 服务器接收中…), so the user sees movement on
   // big attachments. Images stay one-shot (small, mock URL in dev anyway).
   const uploadOne = async (file: File, toastId?: string | number): Promise<boolean> => {
     if (file.size > MAX_UPLOAD_BYTES) {
@@ -273,8 +273,10 @@ export function WritePage() {
       } else {
         const { url, filename } = await uploadsApi.uploadNoteFile(file, (p) => {
           if (toastId === undefined) return
+          // 字节发完（100%）后进入 processing：数据正经 CF 隧道传到源站、服务器接收/落盘，
+          // 仍需时间。文案改「服务器接收中…」而非满进度的「处理中…」，更诚实。
           if (p.phase === 'processing' || p.phase === 'done') {
-            toast.loading('处理中…', { id: toastId })
+            toast.loading('服务器接收中…', { id: toastId })
           } else if (p.ratio != null) {
             toast.loading(`文件上传中… ${Math.round(p.ratio * 100)}%`, { id: toastId })
           }

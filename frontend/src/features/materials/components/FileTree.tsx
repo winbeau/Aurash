@@ -4,6 +4,7 @@ import {
   KeyboardSensor,
   PointerSensor,
   MeasuringStrategy,
+  closestCenter,
   useSensor,
   useSensors,
   type Announcements,
@@ -138,14 +139,24 @@ export function FileTree({
 
   const onDragEnd = React.useCallback(
     (e: DragEndEvent) => {
-      const dragId = String(e.active.id)
-      const proj = projection
+      const { active, over, delta } = e
+      const dragId = String(active.id)
+      // 落点时用事件重算投影（DragEndEvent 自带 over/delta）：onDragMove 最后一帧
+      // 常因 over 落回被拖项自身而被早退清空，仅读 state.projection 会丢落点。
+      // 重算为空（无 over 等）再回退到存储的 projection。
+      const proj =
+        projectDrop({
+          dragId,
+          overId: over ? String(over.id) : null,
+          offsetX: delta.x,
+          flat,
+        }) ?? projection
       finish()
       if (!proj) return
       if (proj.dropId === dragId) return
       onReorder({ dragId, dropId: proj.dropId, position: proj.position })
     },
-    [projection, finish, onReorder],
+    [projection, flat, finish, onReorder],
   )
 
   // aria-live 播报（a11y）。
@@ -211,6 +222,9 @@ export function FileTree({
       <DndContext
         sensors={sensors}
         accessibility={{ announcements }}
+        // closestCenter 是 verticalListSortingStrategy 官方搭配：按行中心命中，减少
+        // 指针回到被拖项原槽位时把 over 报成 drag 自身的「自身-over」帧。
+        collisionDetection={closestCenter}
         measuring={{ droppable: { strategy: MeasuringStrategy.Always } }}
         onDragStart={onDragStart}
         onDragMove={onDragMove}

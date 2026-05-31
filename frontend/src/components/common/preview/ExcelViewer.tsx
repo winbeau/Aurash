@@ -1,3 +1,4 @@
+import type * as React from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 // 表格网格样式（库不自注入主样式）。本文件被 React.lazy 包，CSS 随 lazy chunk 加载，首屏零增。
@@ -6,6 +7,8 @@ import '@js-preview/excel/lib/index.css'
 import type { JsExcelPreview } from '@js-preview/excel'
 
 import { resolveAssetUrl } from '@/api/client'
+import { FileTypeIcon } from '@/components/common/FileTypeIcon'
+import { extOf } from '@/lib/fileTypes'
 
 /**
  * ExcelViewer —— @js-preview/excel 表格预览（仅 `.xlsx`，旧版 `.xls` 走降级卡）。
@@ -22,9 +25,11 @@ type Props = {
   url: string
   name: string
   fileId?: string | undefined
+  /** 头部右侧动作槽（下载 / 新窗口等，由父级注入）。 */
+  headerActions?: React.ReactNode
 }
 
-export default function ExcelViewer({ url, name }: Props) {
+export default function ExcelViewer({ url, name, headerActions }: Props) {
   const [loading, setLoading] = useState(true)
   const [showSpinner, setShowSpinner] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -80,10 +85,19 @@ export default function ExcelViewer({ url, name }: Props) {
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
+      {/* 单行头部（无缩放）：图标 + 文件名 + 动作槽（下载/新窗口由父级注入）。 */}
+      <div className="flex shrink-0 items-center gap-2 border-b border-border-strong bg-bg-subtle px-3 py-2 pr-10">
+        <FileTypeIcon ext={extOf(name) || extOf(url)} className="size-5 shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-sm font-medium text-text" title={name}>
+          {name}
+        </span>
+        {headerActions}
+      </div>
+
       <div
         ref={containerRef}
         aria-label={`${name} 表格预览`}
-        className="min-h-0 flex-1 overflow-auto bg-transparent"
+        className="min-h-0 flex-1 overflow-auto bg-bg-subtle"
       />
       {showSpinner && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">

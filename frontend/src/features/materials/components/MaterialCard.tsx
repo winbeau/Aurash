@@ -22,7 +22,9 @@ import type { MaterialResource } from '../types'
  * 操作菜单（编辑/删除，仅 owner 可见）。点击卡片进详情。token 配色，去 KnoHub 渐变。
  *
  * 设计：
- * - 整卡可点（进详情）；右上操作按钮 group-hover 浮现，仅 `ownerSid === 当前 sid` 渲染。
+ * - 整卡可点（进详情）；操作按钮绝对定位卡片右上（`absolute right-2 top-2`），
+ *   group-hover 浮现，仅 owner/admin 渲染——不占独立头部行，无 tag 时也无留白。
+ * - 课程类型角标与标题同行（badge shrink-0 + h3 min-w-0 flex-1 truncate）；无 tag 不渲染占位。
  * - 操作走 DropdownMenu（已装 ui/dropdown-menu），避免在卡片上堆按钮；删除走
  *   消费侧传入的 onDelete（由父级用 useConfirm + useDeleteResource 处理）。
  * - 目录预览：列表场景 `files` 通常为空（后端省略树）→ 该区按需渲染，无文件时省略。
@@ -65,61 +67,61 @@ export function MaterialCard({ resource, onOpen, onEdit, onDelete }: Props) {
         'focus-visible:ring-2 focus-visible:ring-ring',
       )}
     >
-      {/* 头部：角标 + 操作菜单 */}
-      <div className="flex items-start justify-between gap-2">
-        {badge ? (
-          <span
-            className={cn(
-              'inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold',
-              badge.bgClass,
-              badge.textClass,
-              badge.borderClass,
-            )}
+      {/* 操作菜单：绝对定位卡片右上，group-hover 浮现，仅 owner/admin 可见。 */}
+      {canManage ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-2 top-2 h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+              aria-label="资料操作"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenuItem
+              onSelect={() => onEdit(resource)}
+              className="gap-2"
+            >
+              <Pencil className="h-4 w-4" />
+              编辑
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => onDelete(resource)}
+              className="gap-2 text-cat-research focus:text-cat-research"
+            >
+              <Trash2 className="h-4 w-4" />
+              删除
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+
+      {/* 标题（角标同行）+ 简介；pr-7 给右上绝对操作按钮留位，避免 hover 时遮标题。 */}
+      <div className="min-w-0 space-y-1 pr-7">
+        <div className="flex items-center gap-2 min-w-0">
+          {badge ? (
+            <span
+              className={cn(
+                'inline-flex shrink-0 items-center rounded-md border px-2 py-0.5 text-xs font-semibold',
+                badge.bgClass,
+                badge.textClass,
+                badge.borderClass,
+              )}
+            >
+              {badge.label}
+            </span>
+          ) : null}
+          <h3
+            className="min-w-0 flex-1 truncate font-serif text-base font-semibold text-text"
+            title={resource.title}
           >
-            {badge.label}
-          </span>
-        ) : (
-          <span aria-hidden className="h-5" />
-        )}
-
-        {canManage ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
-                aria-label="资料操作"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-              <DropdownMenuItem
-                onSelect={() => onEdit(resource)}
-                className="gap-2"
-              >
-                <Pencil className="h-4 w-4" />
-                编辑
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => onDelete(resource)}
-                className="gap-2 text-cat-research focus:text-cat-research"
-              >
-                <Trash2 className="h-4 w-4" />
-                删除
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-      </div>
-
-      {/* 标题 + 简介 */}
-      <div className="min-w-0 space-y-1">
-        <h3 className="truncate font-serif text-base font-semibold text-text" title={resource.title}>
-          {resource.title}
-        </h3>
+            {resource.title}
+          </h3>
+        </div>
         {resource.description ? (
           <p className="line-clamp-2 text-sm text-text-muted">{resource.description}</p>
         ) : null}
