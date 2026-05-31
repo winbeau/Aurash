@@ -29,6 +29,7 @@ import {
 import { FileTypeIcon } from '@/components/common/FileTypeIcon'
 import { extOf, formatBytes, MAX_UPLOAD_BYTES } from '@/lib/fileTypes'
 import { cn } from '@/lib/cn'
+import type { UploadProgress } from '@/api/upload'
 
 import { useUploadFiles } from '../hooks/useMaterials'
 import type { FolderOption } from '../types'
@@ -39,8 +40,9 @@ import type { FolderOption } from '../types'
  * 设计（角色清单 + plan-materials-integration.md「上传」）：
  * - 拖拽 / 点选多文件 → pendingFiles 网格（改 baseName / 移除 / 总大小，扩展名后缀只读）。
  * - 目标文件夹 Select（getAllFolders 拼好的层级 path；根级为「资源根目录」）。
- * - idle / uploading / success / error 四态 + ui/progress（mutation 无逐字节进度，
- *   故 uploading 用不确定动画条，成功后 100%）。
+ * - idle / uploading / success / error 四态 + ui/progress。上传走 XHR（api/upload），
+ *   出**真实逐字节进度**：uploading 显示百分比；字节发完后 phase='processing'，进度条
+ *   满 + 文案「已发送，等待服务器确认…」（CF/nginx 缓冲响应尾延迟）；success 后 100%。
  * - 上传走 hook 层 useUploadFiles（toast 在 hook 内，不在本渲染期调用，MEMORY 警示）。
  * - 单文件超 MAX_UPLOAD_BYTES（50MB）前端先拦（标红 + 禁上传），后端再兜底 413。
  * - 上传成功自动关闭；失败保留弹窗（保留待传清单）+ 错误态供重试。
@@ -109,6 +111,7 @@ export function UploadDialog({
   const [target, setTarget] = React.useState<string>(ROOT_VALUE)
   const [status, setStatus] = React.useState<Status>('idle')
   const [errorMsg, setErrorMsg] = React.useState('')
+  const [progress, setProgress] = React.useState<UploadProgress | null>(null)
   const [dragActive, setDragActive] = React.useState(false)
   const inputRef = React.useRef<HTMLInputElement>(null)
   const dragDepth = React.useRef(0)
@@ -119,6 +122,7 @@ export function UploadDialog({
     setPending([])
     setStatus('idle')
     setErrorMsg('')
+    setProgress(null)
     setDragActive(false)
     dragDepth.current = 0
     setTarget(defaultFolderId ?? ROOT_VALUE)
@@ -160,8 +164,15 @@ export function UploadDialog({
     const folderId = target === ROOT_VALUE ? null : target
     setStatus('uploading')
     setErrorMsg('')
+    setProgress({ loaded: 0, total: 0, ratio: 0, phase: 'uploading' })
     upload.mutate(
-      { rid: resourceId, files, folderId },
+      {
+        rid: resourceId,
+        files,
+        folderId,
+        // 进度回调（onProgress 在回调里 setState，不在渲染期；toast 仍在 hook 层）。
+        onProgress: (p) => setProgress(p),
+      },
       {
         onSuccess: () => {
           setStatus('success')
@@ -333,11 +344,34 @@ export function UploadDialog({
           {/* 四态反馈 */}
           {uploading ? (
             <div className="space-y-1.5" aria-live="polite">
-              <Progress value={null} className="animate-pulse" />
-              <p className="flex items-center gap-1.5 text-xs text-text-muted">
-                <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
-                正在上传 {pending.length} 个文件…
-              </p>
+              {/* 真实进度：ratio 已知 → 百分比；processing 阶段 → 满条。
+                  ratio 仍为 null（lengthComputable=false）→ 退回不确定动画条。 */}
+              <Progress
+                value={
+                  progress?.phase === 'processing'
+                    ? 100
+                    : progress?.ratio != null
+                      ? Math.round(progress.ratio * 100)
+                      : null
+                }
+                className={progress?.ratio == null && progress?.phase !== 'processing' ? 'animate-pulse' : undefined}
+              />
+              {progress?.phase === 'processing' ? (
+                <p className="flex items-center gap-1.5 text-xs text-text-muted">
+                  <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
+                  已发送，等待服务器确认…
+                </p>
+              ) : (
+                <p className="flex items-center justify-between gap-1.5 text-xs text-text-muted">
+                  <span className="flex items-center gap-1.5">
+                    <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
+                    正在上传 {pending.length} 个文件…
+                  </span>
+                  {progress?.ratio != null ? (
+                    <span className="tabular-nums">{Math.round(progress.ratio * 100)}%</span>
+                  ) : null}
+                </p>
+              )}
             </div>
           ) : null}
           {status === 'success' ? (

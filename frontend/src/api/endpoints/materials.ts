@@ -1,5 +1,6 @@
 import type { QueryValue } from '../client'
-import { getApiBase, request } from '../client'
+import { getApiBase, isMockMode, request } from '../client'
+import { xhrUpload, type UploadProgress } from '../upload'
 import {
   MaterialFileSchema,
   MaterialFileTreeSchema,
@@ -111,25 +112,36 @@ export async function getFiles(rid: string): Promise<MaterialFile[]> {
  * POST /materials/resources/{rid}/files —— 多文件 multipart 上传（owner only）。
  * 返回重新组好的树。`folderId` 省略 = 上传到资源根。
  *
- * 注：本端点走 client.ts 的 `request`（FormData，无进度）；需要真实进度的场景
- * 走 `useDownload` 同款的原生 fetch（见 hooks/useMaterials uploadWithProgress）。
+ * `onProgress` 可选（向后兼容）：传入即用 XHR 出**真实逐字节进度**（多文件一次请求，
+ * 进度是整体字节比）；省略时行为与原 fetch 路径一致。Mock 模式下退回 `request`。
  */
 export async function uploadFiles(
   rid: string,
   files: File[],
   folderId?: string | null,
+  onProgress?: (p: UploadProgress) => void,
 ): Promise<MaterialFile[]> {
   const form = new FormData()
   for (const f of files) form.append('files', f)
-  const query: Record<string, QueryValue> = {}
-  if (folderId) query['folderId'] = folderId
-  return request({
-    method: 'POST',
-    path: `/materials/resources/${rid}/files`,
-    schema: MaterialFileTreeSchema,
+  if (isMockMode()) {
+    const query: Record<string, QueryValue> = {}
+    if (folderId) query['folderId'] = folderId
+    return request({
+      method: 'POST',
+      path: `/materials/resources/${rid}/files`,
+      schema: MaterialFileTreeSchema,
+      headers: authHeaders(),
+      body: form,
+      query,
+    })
+  }
+  // uploadUrl() 已把 folderId 编进 query string，直接整 URL 给 xhrUpload。
+  return xhrUpload({
+    url: uploadUrl(rid, folderId),
+    form,
     headers: authHeaders(),
-    body: form,
-    query,
+    schema: MaterialFileTreeSchema,
+    onProgress,
   })
 }
 

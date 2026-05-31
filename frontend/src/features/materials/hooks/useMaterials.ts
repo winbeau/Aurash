@@ -21,6 +21,7 @@ import {
   updateResource,
   uploadFiles,
 } from '@/api/endpoints/materials'
+import type { UploadProgress } from '@/api/upload'
 import type { MaterialFile, MaterialResource } from '../types'
 import type {
   ReorderIn,
@@ -220,8 +221,9 @@ export function useDeleteFolder() {
 }
 
 /**
- * 简易上传（无进度）—— 通过 client.ts 的 request。需要真实进度条的上传弹窗走
- * `useUploadWithProgress`（hooks 内 XHR），两者最终都 invalidate 同一树。
+ * 多文件上传 —— 走 `api/upload` 的 XHR，出**真实逐字节进度**（`onProgress`
+ * 由调用方 UploadDialog 传入，把 ratio 灌进进度条）。多文件一次请求，进度是
+ * 整体字节比。toast 仍在 hook 层（onSuccess/onError），不在 Dialog 渲染期调。
  */
 export function useUploadFiles() {
   const invalidate = useInvalidateTree()
@@ -230,11 +232,13 @@ export function useUploadFiles() {
       rid,
       files,
       folderId,
+      onProgress,
     }: {
       rid: string
       files: File[]
       folderId?: string | null
-    }) => uploadFiles(rid, files, folderId),
+      onProgress?: (p: UploadProgress) => void
+    }) => uploadFiles(rid, files, folderId, onProgress),
     onSuccess: (_data, vars) => {
       invalidate(vars.rid)
       toast.success(`已上传 ${vars.files.length} 个文件`)

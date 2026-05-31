@@ -256,7 +256,12 @@ export function WritePage() {
   // Upload a single file (image → ![](url); doc → [name](url)) and insert it
   // at the caret. Returns true on success. Size guard mirrors backend
   // MAX_UPLOAD_BYTES so oversized files fail fast without a round-trip.
-  const uploadOne = async (file: File): Promise<boolean> => {
+  //
+  // `toastId` (when given) is the shared loading toast from uploadAndInsert: the
+  // doc branch uploads via XHR with real byte progress and updates that one
+  // toast in place (`文件上传中… NN%` → 处理中…), so the user sees movement on
+  // big attachments. Images stay one-shot (small, mock URL in dev anyway).
+  const uploadOne = async (file: File, toastId?: string | number): Promise<boolean> => {
     if (file.size > MAX_UPLOAD_BYTES) {
       toast.error(`「${file.name}」超过 ${formatBytes(MAX_UPLOAD_BYTES)} 上限`)
       return false
@@ -266,7 +271,14 @@ export function WritePage() {
         const { url } = await uploadsApi.uploadNoteImage(file)
         insertAtCursor(`![](${url})`)
       } else {
-        const { url, filename } = await uploadsApi.uploadNoteFile(file)
+        const { url, filename } = await uploadsApi.uploadNoteFile(file, (p) => {
+          if (toastId === undefined) return
+          if (p.phase === 'processing' || p.phase === 'done') {
+            toast.loading('处理中…', { id: toastId })
+          } else if (p.ratio != null) {
+            toast.loading(`文件上传中… ${Math.round(p.ratio * 100)}%`, { id: toastId })
+          }
+        })
         // 前导/尾随换行让附件 [name](url) 自成一段 → 渲染为块级 FileCard。
         insertAtCursor(`\n[${filename}](${url})\n`)
       }
@@ -297,7 +309,9 @@ export function WritePage() {
       if (accepted.length > 1) {
         toast.loading(`上传中… (${i}/${accepted.length})`, { id: t })
       }
-      if (await uploadOne(file)) ok += 1
+      // 单文件时把共享 toast 交给 uploadOne 的 doc 分支逐字节更新百分比；多文件
+      // 时外层已显示 (i/n) 计数，doc 分支内仍会在每个文件内刷新「…NN% / 处理中…」。
+      if (await uploadOne(file, t)) ok += 1
     }
     if (ok === accepted.length) {
       toast.success(ok > 1 ? `已插入 ${ok} 个文件` : '已插入', { id: t })
