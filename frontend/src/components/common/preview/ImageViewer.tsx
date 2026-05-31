@@ -6,6 +6,7 @@ import { resolveAssetUrl } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { FileTypeIcon } from '@/components/common/FileTypeIcon'
 import { extOf } from '@/lib/fileTypes'
+import { useDragScroll } from './useDragScroll'
 import { ZOOM_MAX, ZOOM_MIN, usePreviewZoom } from './usePreviewZoom'
 
 /**
@@ -32,6 +33,8 @@ export default function ImageViewer({ url, name, fileId, headerActions }: Props)
   const { zoom, setZoom, zoomIn, zoomOut } = usePreviewZoom('image', fileId ?? url, 1)
   const [loading, setLoading] = useState(true)
   const [errored, setErrored] = useState(false)
+  // 图片自然尺寸：用于撑出 scaled 包裹层（transform:scale 不更新父级 scroll 尺寸）。
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
 
@@ -50,8 +53,13 @@ export default function ImageViewer({ url, name, fileId, headerActions }: Props)
 
   const onLoad = useCallback(() => {
     setLoading(false)
+    const img = imgRef.current
+    if (img?.naturalWidth) setNatural({ w: img.naturalWidth, h: img.naturalHeight })
     autoFit()
   }, [autoFit])
+
+  // 拖拽平移：放大超出视口后任意轴可拖；img 已 draggable=false + select-none 不冲突。
+  useDragScroll(scrollRef, { enabled: true })
 
   // Ctrl + 滚轮缩放（passive:false 才能 preventDefault）。
   useEffect(() => {
@@ -114,24 +122,36 @@ export default function ImageViewer({ url, name, fileId, headerActions }: Props)
         {headerActions}
       </div>
 
-      {/* 滚动区（暖近白衬底）。 */}
+      {/* 滚动区（暖近白衬底）。flex + 子层 m-auto：小于视口居中、大于视口从原点起两端可滚。 */}
       <div
         ref={scrollRef}
-        className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-bg-subtle p-4"
+        className="flex min-h-0 flex-1 overflow-auto bg-bg-subtle p-4"
       >
-        <img
-          ref={imgRef}
-          src={resolveAssetUrl(url)}
-          alt={name}
-          onLoad={onLoad}
-          onError={() => setErrored(true)}
-          draggable={false}
-          style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: 'center center',
-          }}
-          className="max-w-none select-none"
-        />
+        {/* 包裹层显式占 scaled 尺寸 → 撑大滚动盒；m-auto 居中（小图）/塌缩（大图）。 */}
+        <div
+          className="m-auto shrink-0"
+          style={
+            natural
+              ? { width: natural.w * zoom, height: natural.h * zoom }
+              : undefined
+          }
+        >
+          <img
+            ref={imgRef}
+            src={resolveAssetUrl(url)}
+            alt={name}
+            onLoad={onLoad}
+            onError={() => setErrored(true)}
+            draggable={false}
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top left',
+              width: natural ? `${natural.w}px` : undefined,
+              height: natural ? `${natural.h}px` : undefined,
+            }}
+            className="max-w-none select-none"
+          />
+        </div>
       </div>
 
       {loading && (

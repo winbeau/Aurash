@@ -28,6 +28,7 @@ import type {
   ResourceCreateIn,
   ResourceUpdateIn,
 } from '@/api/schemas/material'
+import { applyReorder } from '../lib/tree'
 
 /**
  * @tanstack/react-query 封装「资料」域全部读写 —— **toast 一律在 hook 层调用**
@@ -185,14 +186,60 @@ export function useRenameFile() {
   })
 }
 
+/**
+ * 拖拽 reorder —— **乐观更新**消除「拖完 ~1s 才更新」（旧实现无乐观态，靠
+ * onSuccess invalidate 触发 network round-trip + 重拉才反映）。
+ *
+ * - onMutate：取消在途 files/resource 查询（避免重拉覆盖乐观态）；快照旧值；
+ *   用 `applyReorder`（镜像后端 reorder_file 语义的纯函数）即时改写 files(rid)
+ *   与 resource(rid).files 缓存；返回快照作 context。
+ * - onError：回滚两份缓存 + toast.error。
+ * - onSuccess：不再立即 invalidate（乐观态已就位）。
+ * - onSettled：invalidate(rid) 与服务端对账兜底（应与乐观态一致，不产生闪烁）。
+ */
 export function useReorder() {
+  const qc = useQueryClient()
   const invalidate = useInvalidateTree()
   return useMutation({
     mutationFn: ({ rid: _rid, ...body }: ReorderIn & { rid: string }) => reorder(body),
-    onSuccess: (_data, vars) => {
+    onMutate: async (vars) => {
+      const { rid, dragId, dropId, position } = vars
+      // 取消在途查询，防止其 resolve 后覆盖我们的乐观写入。
+      await qc.cancelQueries({ queryKey: keys.files(rid) })
+      await qc.cancelQueries({ queryKey: keys.resource(rid) })
+
+      const prevFiles = qc.getQueryData<MaterialFile[]>(keys.files(rid))
+      const prevResource = qc.getQueryData<MaterialResource>(keys.resource(rid))
+
+      if (prevFiles) {
+        qc.setQueryData<MaterialFile[]>(
+          keys.files(rid),
+          applyReorder(prevFiles, { dragId, dropId, position }),
+        )
+      }
+      if (prevResource) {
+        qc.setQueryData<MaterialResource>(keys.resource(rid), {
+          ...prevResource,
+          files: applyReorder(prevResource.files, { dragId, dropId, position }),
+        })
+      }
+
+      return { prevFiles, prevResource }
+    },
+    onError: (e, vars, context) => {
+      // 回滚两份缓存到快照（仅当确有快照）。
+      if (context?.prevFiles !== undefined) {
+        qc.setQueryData(keys.files(vars.rid), context.prevFiles)
+      }
+      if (context?.prevResource !== undefined) {
+        qc.setQueryData(keys.resource(vars.rid), context.prevResource)
+      }
+      toast.error(errMsg(e, '移动失败'))
+    },
+    onSettled: (_data, _err, vars) => {
+      // 与服务端对账兜底（含列表的文件数 / 更新时间）。
       invalidate(vars.rid)
     },
-    onError: (e) => toast.error(errMsg(e, '移动失败')),
   })
 }
 

@@ -1,11 +1,12 @@
 import type * as React from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Maximize2, ZoomIn, ZoomOut } from 'lucide-react'
 
 import { resolveAssetUrl } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { FileTypeIcon } from '@/components/common/FileTypeIcon'
 import { extOf } from '@/lib/fileTypes'
+import { useDragScroll } from './useDragScroll'
 import { usePreviewZoom } from './usePreviewZoom'
 
 /**
@@ -28,9 +29,15 @@ type Props = {
 }
 
 export default function DocxViewer({ url, name, fileId, headerActions }: Props) {
-  const { zoom, zoomIn, zoomOut, reset } = usePreviewZoom('docx', fileId ?? url, 1)
+  const { zoom, setZoom, zoomIn, zoomOut } = usePreviewZoom('docx', fileId ?? url, 1)
+  // 追踪当前 zoom 供 [url] effect 的测量 rAF 读取（effect 闭包里的 zoom 是挂载时旧值）。
+  const zoomRef = useRef(zoom)
+  zoomRef.current = zoom
   const [loading, setLoading] = useState(true)
   const [showSpinner, setShowSpinner] = useState(false)
+  // 渲染后测得的「自然（未缩放）」页宽高：用于撑出 scaled 包裹层 + 适应宽度计算。
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const token = useRef(0)
 
@@ -50,6 +57,7 @@ export default function DocxViewer({ url, name, fileId, headerActions }: Props) 
     const my = ++token.current
     const abort = new AbortController()
     setLoading(true)
+    setNatural(null)
     container.replaceChildren()
 
     ;(async () => {
@@ -70,6 +78,24 @@ export default function DocxViewer({ url, name, fileId, headerActions }: Props) 
       })
       if (my !== token.current) return
       setLoading(false)
+      // 等字体/布局沉降后再测（双 rAF 避开 pre-layout 0）。
+      // offsetWidth/offsetHeight 不受 transform 影响 → 直接拿到自然未缩放尺寸。
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          if (my !== token.current) return
+          // 用「整个渲染块」(.docx-wrapper，含左右 gutter) 的**真实已绘制几何**反推
+          // 自然(未缩放)尺寸：getBoundingClientRect 反映 transform 缩放后的真实宽高，
+          // 除以当时 zoom 即得未缩放真值——比 offsetWidth 更稳（含 padding、避开瞬时布局/
+          // 滚动条误差，消除适宽残余溢出）。此刻 natural=null → scaledW 未约束。
+          const wrapper = container.querySelector('.docx-wrapper') as HTMLElement | null
+          const target = wrapper ?? container
+          const z = zoomRef.current || 1
+          const rect = target.getBoundingClientRect()
+          const w = rect.width / z
+          const h = rect.height / z
+          if (w > 0) setNatural({ w, h })
+        }),
+      )
     })().catch((err) => {
       if (abort.signal.aborted) return
       if (my !== token.current) return
@@ -83,6 +109,25 @@ export default function DocxViewer({ url, name, fileId, headerActions }: Props) 
       container.replaceChildren()
     }
   }, [url])
+
+  // 真·适应宽度：按自然(未缩放)块宽算绝对 zoom，使内容铺满容器内宽（减 p-4=16*2）。
+  // 容器已 max-content（不二次放大），natural.w 与实际绘制一致 → 此式两个方向都准
+  // （内容过宽→缩小、过窄→放大填满）。setZoom 内部 clamp 30%~300%。
+  const onFitWidth = useCallback(() => {
+    const host = scrollRef.current
+    if (!host || !natural || natural.w <= 0) return
+    const avail = host.clientWidth - 32
+    if (avail <= 0) return
+    setZoom(avail / natural.w)
+  }, [natural, setZoom])
+
+  // 拖拽平移：4px 阈值保留 docx 文本选区（小位移点击/选区透传给浏览器）。
+  useDragScroll(scrollRef, { enabled: true })
+
+  // 包裹层尺寸 = 自然尺寸 × zoom：让滚动盒 scrollWidth/Height 反映 scaled 后大小
+  // （transform:scale 本身不更新父级 scroll 尺寸）。
+  const scaledW = natural ? natural.w * zoom : undefined
+  const scaledH = natural ? natural.h * zoom : undefined
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">
@@ -120,9 +165,9 @@ export default function DocxViewer({ url, name, fileId, headerActions }: Props) 
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            onClick={reset}
-            aria-label="重置 100%"
-            title="重置"
+            onClick={onFitWidth}
+            aria-label="适应宽度"
+            title="适应宽度"
           >
             <Maximize2 className="h-4 w-4" />
           </Button>
@@ -131,16 +176,28 @@ export default function DocxViewer({ url, name, fileId, headerActions }: Props) 
       </div>
 
       {/* 滚动区（暖近白衬底，衬托白色文档页）。 */}
-      <div className="min-h-0 flex-1 overflow-auto bg-bg-subtle p-4">
-        <div
-          ref={containerRef}
-          aria-label={`${name} 文档预览`}
-          style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: 'top center',
-            width: zoom !== 1 ? `${100 / zoom}%` : undefined,
-          }}
-        />
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto bg-bg-subtle p-4">
+        {/* 与 PDF 同款 w-max + min-w-full 居中：w-max=取内容(包裹层)宽、min-w-full≥容器；
+            窄于视口时 items-center 水平居中，宽于视口时 host 从滚动原点起、两端都可滚到——
+            不用滚动盒上的 items-center（超宽内容会被居中裁掉左侧，正是要修的 bug）。 */}
+        <div className="flex w-max min-w-full flex-col items-center">
+          {/* 包裹层显式占 scaled 尺寸 → 撑大滚动盒；transform-origin top left 让缩放内容原点可达。 */}
+          <div style={{ width: scaledW, height: scaledH }}>
+            <div
+              ref={containerRef}
+              aria-label={`${name} 文档预览`}
+              style={{
+                // max-content：容器取**自然内容宽**（不被 scaledW 父级拉伸填满）。否则容器
+                // 先填满 sizer(=natural*zoom) 再被 transform 二次缩放 → 双重放大、scrollWidth
+                // 暴涨（且内层 .docx-wrapper 被挤窄、section 溢出）。取 max-content 后：容器
+                // = 自然宽，缩放一次恰好铺满 sizer，scrollWidth 与 sizer 一致。
+                width: 'max-content',
+                transform: `scale(${zoom})`,
+                transformOrigin: 'top left',
+              }}
+            />
+          </div>
+        </div>
       </div>
 
       {showSpinner && (

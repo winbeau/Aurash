@@ -14,6 +14,7 @@ import { resolveAssetUrl } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { FileTypeIcon } from '@/components/common/FileTypeIcon'
 import { extOf } from '@/lib/fileTypes'
+import { useDragScroll } from './useDragScroll'
 import { usePreviewZoom } from './usePreviewZoom'
 
 /**
@@ -184,7 +185,7 @@ export default function PdfViewer({ url, name, fileId, headerActions }: Props) {
       const cssH = Math.floor(size.height * scale)
 
       const placeholder = document.createElement('div')
-      placeholder.className = 'mx-auto mb-4 shadow-card rounded-sm bg-white'
+      placeholder.className = 'mb-4 shadow-card rounded-sm bg-white'
       placeholder.style.width = `${cssW}px`
       placeholder.style.height = `${cssH}px`
       placeholder.dataset.pageIndex = String(i)
@@ -271,6 +272,9 @@ export default function PdfViewer({ url, name, fileId, headerActions }: Props) {
 
   const onFitWidth = useCallback(() => reset(), [reset])
 
+  // 拖拽平移：hook 自门控 isOverflow()，多页 PDF 竖向、放大后横向均可拖。
+  useDragScroll(scrollRef, { enabled: true })
+
   return (
     <div className="relative flex h-full min-h-0 flex-col">
       {/* 单行头部：图标 + 文件名 + 缩放组 + 动作槽（下载/新窗口由父级注入）。 */}
@@ -322,7 +326,7 @@ export default function PdfViewer({ url, name, fileId, headerActions }: Props) {
 
       {/* 滚动区 + canvas host（页占位保持 bg-white，滚动区暖近白衬底）。 */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-auto bg-bg-subtle p-4">
-        <div ref={canvasHostRef} className="mx-auto" />
+        <div ref={canvasHostRef} className="flex w-max min-w-full flex-col items-center" />
       </div>
 
       {showSpinner && (

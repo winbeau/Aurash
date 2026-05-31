@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { INDENT_PX, projectDrop, type FlatNode } from './tree'
+import { applyReorder, INDENT_PX, projectDrop, type FlatNode } from './tree'
+import type { MaterialFile } from '../types'
 
 /**
  * tree.ts projectDrop 落点投影单测。
@@ -140,5 +141,140 @@ describe('projectDrop', () => {
   it('overId === dragId 帧返回非空：文件夹 a 自身-over → 非空且非 null', () => {
     const proj = projectDrop({ dragId: 'a', overId: 'a', offsetX: 0, flat })
     expect(proj).not.toBeNull()
+  })
+})
+
+/**
+ * applyReorder 乐观更新单测 —— 镜像后端 reorder_file 语义。
+ *
+ * 复用同一棵树（递归形态）：
+ *   a            (folder)   children: c
+ *     c          (file)
+ *   b            (folder)   children: d, e
+ *     d          (file)
+ *     e          (file)
+ *   f            (file)
+ *   g            (folder)   empty
+ *
+ * 断言用「拍平 id 序列 + 各父 children id」校验顺序与归属，避免被 null 占位字段干扰。
+ */
+function file(id: string): MaterialFile {
+  return {
+    id,
+    name: id,
+    isFolder: false,
+    ext: null,
+    mime: null,
+    size: null,
+    sizeBytes: null,
+    url: null,
+    children: [],
+  }
+}
+function folder(id: string, children: MaterialFile[]): MaterialFile {
+  return { ...file(id), isFolder: true, children }
+}
+
+function buildTree(): MaterialFile[] {
+  return [
+    folder('a', [file('c')]),
+    folder('b', [file('d'), file('e')]),
+    file('f'),
+    folder('g', []),
+  ]
+}
+
+/** 取某节点的直属 children id 列表（找不到返回 undefined）。 */
+function childIds(tree: MaterialFile[], id: string): string[] | undefined {
+  const walk = (list: MaterialFile[]): MaterialFile | undefined => {
+    for (const n of list) {
+      if (n.id === id) return n
+      const hit = n.children?.length ? walk(n.children) : undefined
+      if (hit) return hit
+    }
+    return undefined
+  }
+  return walk(tree)?.children.map((c) => c.id)
+}
+
+/** 根级节点 id 顺序。 */
+const rootIds = (tree: MaterialFile[]) => tree.map((n) => n.id)
+
+describe('applyReorder', () => {
+  it('不可变：返回新树，原树引用与内部 children 数组均不被改', () => {
+    const tree = buildTree()
+    const snapshotRoot = tree.map((n) => n.id)
+    const snapshotB = childIds(tree, 'b')
+    const next = applyReorder(tree, { dragId: 'e', dropId: 'd', position: 'before' })
+    expect(next).not.toBe(tree)
+    // 原树不动。
+    expect(tree.map((n) => n.id)).toEqual(snapshotRoot)
+    expect(childIds(tree, 'b')).toEqual(snapshotB)
+    // b 节点对象本身换成了新对象（深克隆）。
+    const oldB = tree.find((n) => n.id === 'b')!
+    const newB = next.find((n) => n.id === 'b')!
+    expect(newB).not.toBe(oldB)
+    expect(newB.children).not.toBe(oldB.children)
+  })
+
+  it('同级 after：d 拖到 e 之后 → b.children = [e, d]', () => {
+    const next = applyReorder(buildTree(), { dragId: 'd', dropId: 'e', position: 'after' })
+    expect(childIds(next, 'b')).toEqual(['e', 'd'])
+    expect(rootIds(next)).toEqual(['a', 'b', 'f', 'g'])
+  })
+
+  it('同级 before：e 拖到 d 之前 → b.children = [e, d]', () => {
+    const next = applyReorder(buildTree(), { dragId: 'e', dropId: 'd', position: 'before' })
+    expect(childIds(next, 'b')).toEqual(['e', 'd'])
+  })
+
+  it('inside 进夹：f 拖进空文件夹 g → g.children = [f]，根级去掉 f', () => {
+    const next = applyReorder(buildTree(), { dragId: 'f', dropId: 'g', position: 'inside' })
+    expect(childIds(next, 'g')).toEqual(['f'])
+    expect(rootIds(next)).toEqual(['a', 'b', 'g'])
+  })
+
+  it('inside 追加到末尾（镜像后端 len(siblings)）：c 拖进 b → b.children = [d, e, c]', () => {
+    const next = applyReorder(buildTree(), { dragId: 'c', dropId: 'b', position: 'inside' })
+    expect(childIds(next, 'b')).toEqual(['d', 'e', 'c'])
+    // c 从原父 a 摘除，a 变空。
+    expect(childIds(next, 'a')).toEqual([])
+  })
+
+  it('跨父移动 before：d 拖到根级 f 之前 → 根级 [a, b, d, f, g]，d 离开 b', () => {
+    const next = applyReorder(buildTree(), { dragId: 'd', dropId: 'f', position: 'before' })
+    expect(rootIds(next)).toEqual(['a', 'b', 'd', 'f', 'g'])
+    expect(childIds(next, 'b')).toEqual(['e'])
+  })
+
+  it('跨父移动 after：c 拖到根级 f 之后 → 根级 [a, b, f, c, g]，a 变空', () => {
+    const next = applyReorder(buildTree(), { dragId: 'c', dropId: 'f', position: 'after' })
+    expect(rootIds(next)).toEqual(['a', 'b', 'f', 'c', 'g'])
+    expect(childIds(next, 'a')).toEqual([])
+  })
+
+  it('inside 落点非文件夹 → 安全返回原树引用', () => {
+    const tree = buildTree()
+    expect(applyReorder(tree, { dragId: 'c', dropId: 'f', position: 'inside' })).toBe(tree)
+  })
+
+  it('环路守卫：把文件夹 b inside 到其子 d → 返回原树引用', () => {
+    const tree = buildTree()
+    expect(applyReorder(tree, { dragId: 'b', dropId: 'd', position: 'before' })).toBe(tree)
+  })
+
+  it('dragId === dropId → 返回原树引用', () => {
+    const tree = buildTree()
+    expect(applyReorder(tree, { dragId: 'd', dropId: 'd', position: 'after' })).toBe(tree)
+  })
+
+  it('dragId 不存在 → 返回原树引用', () => {
+    const tree = buildTree()
+    expect(applyReorder(tree, { dragId: 'zzz', dropId: 'd', position: 'after' })).toBe(tree)
+  })
+
+  it('dropId 不存在 → 返回原树引用', () => {
+    const tree = buildTree()
+    expect(applyReorder(tree, { dragId: 'd', dropId: 'zzz', position: 'after' })).toBe(tree)
   })
 })

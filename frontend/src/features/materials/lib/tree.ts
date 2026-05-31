@@ -305,6 +305,152 @@ function toReorderTarget({
 }
 
 /**
+ * 乐观更新：把 `dragId` 节点从树中移除，按 `position` 重插到 `dropId` 落点处，
+ * 返回**全新**的树（不可变 —— 不原地改任何节点 / children 数组）。
+ *
+ * **必须镜像后端 `reorder_file`（services/materials.py）语义**，否则乐观态与
+ * refetch 结果不一致会闪烁：
+ * - `inside`：drag 成为 `dropId`（文件夹）的子，**追加到末尾**（后端
+ *   `insert_index = len(siblings)`）。drop 非文件夹 → 非法，返回原树。
+ * - `before` / `after`：drag 成为 `dropId` 的同级兄弟（插到 dropId 父的
+ *   children 里 dropId 之**前** / 之**后**）。后端用「去掉 drag 后的兄弟列表」
+ *   定位 drop_index，故同父内自移动时插入位与 dropId 的相对位置一致。
+ *
+ * 安全返回原树（含 `dragId === dropId` 时直接返回原 `tree` 引用）的情况：
+ * - dragId / dropId 不存在；
+ * - inside 落点非文件夹；
+ * - dragId === dropId；
+ * - 环路：dropId 落点（或其某祖先）= dragId 自身或其后代（拖文件夹进自身子树）。
+ *
+ * 注意：后端的同级 `before/after` 是在「移除 drag 之后」的兄弟列表上找 drop 的
+ * 索引；本函数等价实现 —— 先克隆整棵树并把 drag 从原父 children 摘除，再在目标父
+ * 的（已不含 drag 的）children 里按 dropId 索引插入，与后端 `sort_order` 重写后的
+ * 顺序逐一对齐。
+ */
+export function applyReorder(
+  tree: MaterialFile[],
+  input: { dragId: string; dropId: string; position: ReorderPosition },
+): MaterialFile[] {
+  const { dragId, dropId, position } = input
+  // 同节点 / 自身落点：后端 400「不能拖到自身」，乐观态原样返回。
+  if (dragId === dropId) return tree
+
+  // 先在原树里定位 drag / drop，做与后端一致的前置校验（不存在 / inside 非夹 / 环路）。
+  const dragNode = findNode(tree, dragId)
+  const dropNode = findNode(tree, dropId)
+  if (!dragNode || !dropNode) return tree
+  if (position === 'inside' && !dropNode.isFolder) return tree
+
+  // 新父 = inside → dropId；before/after → dropId 的父（在树里查）。
+  const newParentId =
+    position === 'inside' ? dropId : findParentId(tree, dropId)
+
+  // 环路守卫（对齐后端）：新父 = drag 自身或其后代 → 非法。
+  if (isReorderCycle(tree, newParentId, dragId)) return tree
+
+  // 克隆整棵树（新数组 + 新节点 + 新 children 数组），同时把 drag 从其原父摘出。
+  let detached: MaterialFile | null = null
+  const clone = (nodes: MaterialFile[]): MaterialFile[] => {
+    const out: MaterialFile[] = []
+    for (const node of nodes) {
+      if (node.id === dragId) {
+        // 摘除：克隆出 drag 子树留作重插（其 children 一并深克隆），不放回原父。
+        detached = cloneSubtree(node)
+        continue
+      }
+      out.push({
+        ...node,
+        children: node.children?.length ? clone(node.children) : [],
+      })
+    }
+    return out
+  }
+  const roots = clone(tree)
+  if (!detached) return tree // 理论不达（findNode 已确认存在）
+
+  // 把摘出的 drag 重插到目标父的 children（newParentId=null → 根级 roots）。
+  if (newParentId === null) {
+    insertSibling(roots, detached, dropId, position)
+  } else {
+    const parent = findNode(roots, newParentId)
+    if (!parent) return tree // 父被摘掉了（不该发生）→ 安全回原树
+    if (position === 'inside') {
+      // 追加到末尾（镜像后端 insert_index = len(siblings)）。
+      parent.children = [...parent.children, detached]
+    } else {
+      insertSibling(parent.children, detached, dropId, position)
+    }
+  }
+  return roots
+}
+
+/**
+ * 深克隆一棵子树（新节点 + 新 children 数组），供 applyReorder 摘出 drag 后重插。
+ */
+function cloneSubtree(node: MaterialFile): MaterialFile {
+  return {
+    ...node,
+    children: node.children?.length ? node.children.map(cloneSubtree) : [],
+  }
+}
+
+/**
+ * 在 `siblings`（目标父的 children，已不含 drag）里按 dropId 的位置插入 `node`：
+ * `before` 插在 dropId 之前，`after` 插在 dropId 之后；dropId 不在该列表（理论不达）
+ * 时追加到末尾（镜像后端 drop_index is None → append）。原地改传入的数组。
+ */
+function insertSibling(
+  siblings: MaterialFile[],
+  node: MaterialFile,
+  dropId: string,
+  position: ReorderPosition,
+): void {
+  const dropIndex = siblings.findIndex((n) => n.id === dropId)
+  if (dropIndex < 0) {
+    siblings.push(node)
+    return
+  }
+  const at = position === 'before' ? dropIndex : dropIndex + 1
+  siblings.splice(at, 0, node)
+}
+
+/** 在递归树里查 `id` 节点的父 id（根级返回 null；找不到也返回 null）。 */
+function findParentId(nodes: MaterialFile[], id: string): string | null {
+  const walk = (list: MaterialFile[], parentId: string | null): string | null | undefined => {
+    for (const node of list) {
+      if (node.id === id) return parentId
+      if (node.isFolder && node.children?.length) {
+        const hit = walk(node.children, node.id)
+        if (hit !== undefined) return hit
+      }
+    }
+    return undefined
+  }
+  return walk(nodes, null) ?? null
+}
+
+/**
+ * 环路守卫（对齐后端 reorder_file 的 ancestor 链爬升）：从 `newParentId` 沿父链
+ * 上溯，若途中（含 newParentId 自身）遇到 `dragId` → 会把 drag 嵌进自身子树，非法。
+ * `newParentId === null`（根级）永不成环。
+ */
+function isReorderCycle(
+  tree: MaterialFile[],
+  newParentId: string | null,
+  dragId: string,
+): boolean {
+  let cursor: string | null = newParentId
+  const guard = new Set<string>()
+  while (cursor != null) {
+    if (cursor === dragId) return true
+    if (guard.has(cursor)) break // 防御脏环
+    guard.add(cursor)
+    cursor = findParentId(tree, cursor)
+  }
+  return false
+}
+
+/**
  * `candidateId` 是否等于 `ancestorId` 或为其后代（沿 parentId 链上溯）。
  * 用于环路守卫：把文件夹拖进自身或其子目录非法。
  */
