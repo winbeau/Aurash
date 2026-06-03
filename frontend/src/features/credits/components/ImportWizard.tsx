@@ -146,12 +146,10 @@ export function ImportWizard({
             <p className="text-text-faint">安装成功后自动进入下一步。</p>
           </Step>
 
-          <Step index={2} cur={cur} title="去教务系统导出">
-            <p className="text-text-muted">
-              打开教务系统并登录，然后：
-            </p>
+          <Step index={2} cur={cur} title="去 WebVPN 导出成绩单">
+            <p className="text-text-muted">打开 WebVPN 并登录，然后：</p>
             <ol className="ml-4 list-decimal space-y-1 text-text-muted">
-              <li>进入「成绩查询」页面；</li>
+              <li>进入「本科生教学管理」页面；</li>
               <li>
                 点页面<strong className="text-text">右下角</strong>的绿色按钮
                 <span className="mx-1 inline-flex items-center gap-1 rounded-lg border border-emerald-600/40 bg-emerald-500/10 px-2 py-0.5 align-middle text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
@@ -171,10 +169,20 @@ export function ImportWizard({
                 onGoExport()
               }}
             >
-              <ExternalLink aria-hidden /> 打开教务系统（webvpn）
+              <ExternalLink aria-hidden /> 打开 WebVPN
             </Button>
           </Step>
         </ol>
+
+        {cur < 2 && (
+          <div className="flex items-center gap-2 border-t border-border pt-3 text-xs text-text-faint">
+            <span className="relative flex size-2.5 shrink-0">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500" />
+            </span>
+            正在实时检测「脚本猫 / 飞跃脚本」安装状态，装好自动跳下一步…
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

@@ -3,7 +3,8 @@
  * 行为等同书签/用户脚本）。点按钮 → 同源 topdf/下载 PDF → no-cors POST 回传飞跃中转端点
  * → 切回飞跃学分统计页(可见即自动取回解析)。全程用你已登录的教务会话，不碰密码。
  *
- * v1.3：悬浮按钮改用飞跃站点的 Notion 风格(白底/细边/深色字/飞跃绿 accent/12px 圆角)并加大；
+ * v1.5：悬浮按钮再放大一倍、改 Notion 小圆角方矩形(radius 10px)。
+ * v1.3：悬浮按钮改用飞跃站点的 Notion 风格(白底/细边/深色字/飞跃绿 accent)并加大；
  *       状态 default→loading(转圈)→success(绿勾)→error(红叉)，CSS spinner。
  * v1.1：只在顶层框架注入(教务是 frameset)；不再用 cookie 读学号(可能 HttpOnly)，
  *       改从 topdf 返回的 `<学号>_时间.pdf` 取真实学号，kingo.guest 才算真未登录。
@@ -36,9 +37,9 @@
     red: '#e03e3e', redBg: 'rgba(224,62,62,.08)', redLine: 'rgba(224,62,62,.4)',
   }
   var FONT =
-    "600 15px/1.25 'Inter Tight','PingFang SC',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
+    "600 20px/1.2 'Inter Tight','PingFang SC',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"
 
-  var SVG_OPEN = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+  var SVG_OPEN = '<svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
   var IC_DOWNLOAD = SVG_OPEN + '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>'
   var IC_CHECK = SVG_OPEN + '<polyline points="20 6 9 17 4 12"/></svg>'
   var IC_CROSS = SVG_OPEN + '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
@@ -47,7 +48,7 @@
   var style = document.createElement('style')
   style.textContent =
     '@keyframes fy-spin{to{transform:rotate(360deg)}}' +
-    '.fy-spin{display:inline-block;width:15px;height:15px;border:2px solid currentColor;border-top-color:transparent;border-radius:50%;animation:fy-spin .7s linear infinite}' +
+    '.fy-spin{display:inline-block;width:20px;height:20px;border:2.5px solid currentColor;border-top-color:transparent;border-radius:50%;animation:fy-spin .7s linear infinite}' +
     '#feiyue-import-btn:hover{background:' + C.bgHover + ';transform:translateY(-1px)}' +
     '#feiyue-import-btn:active{transform:translateY(0)}' +
     '#feiyue-import-btn .fy-ic{display:inline-flex;align-items:center}'
@@ -58,10 +59,10 @@
   btn.type = 'button'
   btn.style.cssText = [
     'position:fixed', 'right:24px', 'bottom:24px', 'z-index:2147483647',
-    'display:inline-flex', 'align-items:center', 'gap:10px',
-    'padding:13px 20px', 'border-radius:12px',
+    'display:inline-flex', 'align-items:center', 'gap:14px',
+    'padding:18px 34px', 'border-radius:10px',
     'font:' + FONT, 'cursor:pointer',
-    'box-shadow:0 6px 20px rgba(15,15,15,.13),0 1px 3px rgba(15,15,15,.08)',
+    'box-shadow:0 8px 28px rgba(15,15,15,.16),0 2px 6px rgba(15,15,15,.10)',
     'transition:background .15s ease,border-color .15s ease,color .15s ease,transform .1s ease',
     '-webkit-font-smoothing:antialiased',
   ].join(';')
