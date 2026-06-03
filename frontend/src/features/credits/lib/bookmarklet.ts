@@ -13,8 +13,12 @@ export const JWXT_LOGIN_URL = 'https://webvpn.xju.edu.cn:8040/'
 /** 脚本猫官网(下载/安装用户脚本管理器)。 */
 export const SCRIPTCAT_HOME_URL = 'https://scriptcat.org/'
 
-/** 「飞跃导入」用户脚本的安装地址(由飞跃站点静态托管；脚本管理器在场时点开即弹安装)。 */
-export const IMPORT_USERJS_URL = '/import.user.js'
+/**
+ * 「飞跃导入」用户脚本的安装地址(由飞跃站点静态托管；脚本管理器在场时点开即弹安装)。
+ * 带版本 query 绕过 Cloudflare 4h 缓存，保证向导里点「安装脚本」拿到的是最新版；
+ * Tampermonkey 自动更新走 @updateURL(无 query)，二者互不影响。
+ */
+export const IMPORT_USERJS_URL = '/import.user.js?v=1.4.0'
 
 /** 书签把 PDF POST 到的飞跃中转端点(挂在已被 nginx 代理的 /notes 下)。 */
 const STASH_URL = 'https://feiyue.selab.top/notes/transcript-stash'
