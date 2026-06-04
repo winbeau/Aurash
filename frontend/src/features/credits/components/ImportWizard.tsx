@@ -172,8 +172,8 @@ export function ImportWizard({
             <Button
               size="sm"
               onClick={() => {
-                openTab(JWXT_LOGIN_URL)
                 onGoExport()
+                window.location.href = JWXT_LOGIN_URL
               }}
             >
               <ExternalLink aria-hidden /> 打开 WebVPN
