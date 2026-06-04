@@ -84,9 +84,56 @@ export function MaterialDetailView({ resource, onBack, onDeleteResource }: Props
   const { download } = useDownload()
   const { confirm, host: confirmHost } = useConfirm()
 
-  // 上传弹窗 + 预选目标文件夹。
+  // 上传弹窗 + 预选目标文件夹 + 拖拽预填文件。
   const [uploadOpen, setUploadOpen] = React.useState(false)
   const [uploadTarget, setUploadTarget] = React.useState<string | null>(null)
+  const [uploadInitialFiles, setUploadInitialFiles] = React.useState<File[] | null>(null)
+
+  // 左栏整列「拖文件进来即弹窗」：原生 HTML5 文件拖放，与 dnd-kit 重排（指针事件）
+  // 互不干扰。dragDepth 计数消除子元素 dragenter/leave 抖动；overlay 用 pointer-events-none
+  // 让拖放事件穿透到容器，避免 overlay 自身触发 leave 抖动。
+  const [paneDragOver, setPaneDragOver] = React.useState(false)
+  const paneDragDepth = React.useRef(0)
+
+  const hasDragFiles = (e: React.DragEvent) =>
+    Array.from(e.dataTransfer.types).includes('Files')
+
+  const onPaneDragEnter = React.useCallback(
+    (e: React.DragEvent) => {
+      if (!canWrite || !hasDragFiles(e)) return
+      paneDragDepth.current += 1
+      setPaneDragOver(true)
+    },
+    [canWrite],
+  )
+  const onPaneDragOver = React.useCallback(
+    (e: React.DragEvent) => {
+      if (!canWrite || !hasDragFiles(e)) return
+      // 必须 preventDefault 才能触发 drop（且阻止浏览器把文件当导航打开）。
+      e.preventDefault()
+    },
+    [canWrite],
+  )
+  const onPaneDragLeave = React.useCallback(() => {
+    if (!canWrite) return
+    paneDragDepth.current = Math.max(0, paneDragDepth.current - 1)
+    if (paneDragDepth.current === 0) setPaneDragOver(false)
+  }, [canWrite])
+  const onPaneDrop = React.useCallback(
+    (e: React.DragEvent) => {
+      if (!canWrite || !hasDragFiles(e)) return
+      e.preventDefault()
+      paneDragDepth.current = 0
+      setPaneDragOver(false)
+      const dropped = Array.from(e.dataTransfer.files)
+      if (dropped.length === 0) return
+      // 拖拽默认落到资源根；预填待传清单后直接弹窗。
+      setUploadInitialFiles(dropped)
+      setUploadTarget(null)
+      setUploadOpen(true)
+    },
+    [canWrite],
+  )
 
   // 命令式 Prompt（重命名 / 新建文件夹）。
   const { prompt, host: promptHost } = usePrompt()
@@ -144,6 +191,8 @@ export function MaterialDetailView({ resource, onBack, onDeleteResource }: Props
   )
 
   const onUpload = React.useCallback((folderId: string) => {
+    // 点选/工具栏/树右键路径：空清单（区别于拖拽预填）。
+    setUploadInitialFiles(null)
     setUploadTarget(folderId || null)
     setUploadOpen(true)
   }, [])
@@ -231,7 +280,14 @@ export function MaterialDetailView({ resource, onBack, onDeleteResource }: Props
         className="min-h-0 flex-1"
       >
         <Panel defaultSize={26} minSize={18} maxSize={45}>
-          <div className="flex h-full min-h-0 flex-col border-r border-border">
+          <div
+            data-materials-pane
+            className="relative flex h-full min-h-0 flex-col border-r border-border"
+            onDragEnter={onPaneDragEnter}
+            onDragOver={onPaneDragOver}
+            onDragLeave={onPaneDragLeave}
+            onDrop={onPaneDrop}
+          >
             {resource.description ? (
               <p className="shrink-0 border-b border-border px-4 py-3 text-sm leading-relaxed text-text-muted">
                 {resource.description}
@@ -257,6 +313,21 @@ export function MaterialDetailView({ resource, onBack, onDeleteResource }: Props
                 />
               </TreeBody>
             </div>
+
+            {/* 拖文件进左栏时的整列高亮 overlay（仅 owner；pointer-events-none 让拖放事件
+                穿透到容器）。tag-kaggle 仅 12% alpha，需叠在不透明 bg-subtle 底上才能
+                盖住下方空态/树文字，否则两层文字重叠串字。 */}
+            {canWrite && paneDragOver ? (
+              <div className="pointer-events-none absolute inset-2 z-10 overflow-hidden rounded-lg border-2 border-dashed border-cat-kaggle">
+                <div className="absolute inset-0 bg-bg-subtle" />
+                <div className="absolute inset-0 bg-tag-kaggle" />
+                <div className="relative flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
+                  <UploadCloud aria-hidden className="size-7 text-cat-kaggle" strokeWidth={1.5} />
+                  <span className="text-sm font-medium text-text">松开以上传到此资料</span>
+                  <span className="text-xs text-text-muted">文件将上传到资源根目录</span>
+                </div>
+              </div>
+            ) : null}
           </div>
         </Panel>
 
@@ -274,6 +345,7 @@ export function MaterialDetailView({ resource, onBack, onDeleteResource }: Props
           resourceId={resource.id}
           folders={folders}
           defaultFolderId={uploadTarget}
+          initialFiles={uploadInitialFiles}
         />
       ) : null}
     </div>

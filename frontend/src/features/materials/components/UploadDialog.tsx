@@ -73,6 +73,8 @@ type Props = {
   folders: FolderOption[]
   /** 预选目标文件夹 id（右键文件夹「上传到此」时带入）；null/undefined = 资源根。 */
   defaultFolderId?: string | null
+  /** 打开时预填的待传文件（左栏拖拽落入时带入）；null/空 = 空清单（点选/工具栏路径）。 */
+  initialFiles?: File[] | null
 }
 
 /** Select 里「资源根目录」的哨兵值（Radix Select value 不接受空串）。 */
@@ -105,6 +107,7 @@ export function UploadDialog({
   resourceId,
   folders,
   defaultFolderId,
+  initialFiles,
 }: Props) {
   const upload = useUploadFiles()
 
@@ -117,17 +120,20 @@ export function UploadDialog({
   const inputRef = React.useRef<HTMLInputElement>(null)
   const dragDepth = React.useRef(0)
 
-  // 打开时重置（预选目标文件夹 / 清空待传清单 / 回到 idle）。
+  // 打开时重置（预选目标文件夹 / 回到 idle）。待传清单：左栏拖拽落入时带入
+  // initialFiles 直接预填（「拖完即弹窗」无需再点选）；点选/工具栏路径则清空。
+  // initialFiles 仅随「打开」一同变更（拖放/工具栏同帧 set），开着时不会变 → 不会
+  // 覆盖用户在弹窗内的改名/增删（弹窗为 modal，开时树/工具栏不可点）。
   React.useEffect(() => {
     if (!open) return
-    setPending([])
+    setPending(initialFiles && initialFiles.length > 0 ? toPending(initialFiles) : [])
     setStatus('idle')
     setErrorMsg('')
     setProgress(null)
     setDragActive(false)
     dragDepth.current = 0
     setTarget(defaultFolderId ?? ROOT_VALUE)
-  }, [open, defaultFolderId])
+  }, [open, defaultFolderId, initialFiles])
 
   const addFiles = React.useCallback((files: FileList | File[] | null) => {
     if (!files) return

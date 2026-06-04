@@ -203,7 +203,7 @@ export function FileTree({
             <EmptyState
               icon={EMPTY_FILES.icon}
               title={EMPTY_FILES.title}
-              description="点击上传文件，或在工具栏新建文件夹来组织内容。"
+              description="点击或把文件拖到此处上传，或在工具栏新建文件夹来组织内容。"
             />
           </button>
         ) : (
