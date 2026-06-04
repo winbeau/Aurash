@@ -13,7 +13,12 @@ PATH_PREFIX="PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin"
 ENTRY="*/30 * * * * $PATH_PREFIX cd $REPO_ROOT && /usr/bin/env make sync-push-quiet >> $LOG 2>&1"
 
 # 1) Pull current crontab (empty if none), 2) drop our prior entry, 3) append fresh.
-( crontab -l 2>/dev/null | grep -v 'make sync-push-quiet' ; echo "$ENTRY" ) | crontab -
+# `|| true` guards the read+filter: on a machine with no/empty crontab, `crontab
+# -l` exits 1 and `grep -v` emits nothing (also exit 1), which under
+# `set -euo pipefail` would abort the subshell BEFORE the `echo "$ENTRY"` append
+# — clobbering the install with an empty crontab. Swallow that so we always
+# append our entry.
+( crontab -l 2>/dev/null | grep -v 'make sync-push-quiet' || true ; echo "$ENTRY" ) | crontab -
 
 mkdir -p "$(dirname "$LOG")"
 touch "$LOG"
