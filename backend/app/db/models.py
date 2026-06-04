@@ -4,6 +4,7 @@ The 7 categories are kept as a Python `Literal` (mirroring frontend
 `CategoryId`) and stored as a string column. Postgres has a native enum
 type, but using strings keeps SQLite-fallback workable for tests.
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -76,6 +77,15 @@ class User(Base):
     phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     email: Mapped[str | None] = mapped_column(String(128), nullable=True)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    # Authorization tier: 'user' (default) | 'admin' | 'superadmin'. Drives the
+    # /admin dashboard + material-management bypass. The configured bootstrap
+    # super-admin (settings.admin_sid) is ALWAYS treated as superadmin at
+    # runtime regardless of this column (see services.auth.effective_role), so
+    # we can never lock ourselves out; the column is the source of truth for
+    # every *other* account and is what super-admins flip when (de)promoting.
+    role: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="user", default="user"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -224,9 +234,7 @@ class MaterialResource(Base):
         ForeignKey("users.sid", ondelete="CASCADE"), nullable=False, index=True
     )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    deleted: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, index=True
-    )
+    deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -288,16 +296,12 @@ class MaterialFile(Base):
     # Relative on-disk path (physical delete / locate). NULL for folders.
     storage_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    deleted: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, index=True
-    )
+    deleted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
-    resource: Mapped[MaterialResource] = relationship(
-        back_populates="files", lazy="raise"
-    )
+    resource: Mapped[MaterialResource] = relationship(back_populates="files", lazy="raise")
     # Self-referential tree. remote_side ties `parent` to the row whose `id`
     # equals this row's `parent_id`. passive_deletes=True + DB CASCADE drives
     # subtree deletion; lazy='raise' forbids implicit traversal (the service

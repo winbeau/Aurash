@@ -1,4 +1,5 @@
 """FastAPI dependencies — DB session + current user."""
+
 from collections.abc import AsyncGenerator
 
 from fastapi import Depends, HTTPException, Request
@@ -6,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User
 from app.db.session import AsyncSessionLocal
-from app.services.auth import decode_token
+from app.services.auth import decode_token, is_admin, is_superadmin
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -33,9 +34,7 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else ""
 
 
-async def get_current_user(
-    request: Request, db: AsyncSession = Depends(get_db)
-) -> User:
+async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)) -> User:
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="未登录")
@@ -48,9 +47,7 @@ async def get_current_user(
     return user
 
 
-async def get_optional_user(
-    request: Request, db: AsyncSession = Depends(get_db)
-) -> User | None:
+async def get_optional_user(request: Request, db: AsyncSession = Depends(get_db)) -> User | None:
     """Like get_current_user but silently returns None when unauthenticated.
 
     Used by read endpoints that want to surface per-user state (e.g.
@@ -63,3 +60,28 @@ async def get_optional_user(
     if not sid:
         return None
     return await db.get(User, sid)
+
+
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    """Gate for the /admin surface (admin OR superadmin).
+
+    Non-admins get a generic 404 so ordinary users can't even learn that the
+    admin routes exist (matches the original single-admin gate's ethos).
+    """
+    if not is_admin(user):
+        raise HTTPException(status_code=404, detail="Not Found")
+    return user
+
+
+async def require_superadmin(user: User = Depends(get_current_user)) -> User:
+    """Gate for superadmin-only actions (e.g. (de)promoting admins).
+
+    A plain admin already knows the dashboard exists, so they get a 403 (not
+    404) — they lack this specific privilege, not the whole surface. Ordinary
+    users still get a 404.
+    """
+    if not is_admin(user):
+        raise HTTPException(status_code=404, detail="Not Found")
+    if not is_superadmin(user):
+        raise HTTPException(status_code=403, detail="需要超级管理员权限")
+    return user

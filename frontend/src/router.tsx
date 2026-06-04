@@ -33,6 +33,8 @@ const ProfilePage = lazy(() =>
 const CreditsPage = lazy(() =>
   import('@/pages/CreditsPage').then((m) => ({ default: m.CreditsPage })),
 )
+// 隐藏管理后台：仅 URL 进入（无导航入口）；页面内按角色守卫，非管理员见 404 视图。
+const AdminPage = lazy(() => import('@/pages/AdminPage').then((m) => ({ default: m.AdminPage })))
 
 const DesignSystemPage = import.meta.env.DEV
   ? lazy(() =>
@@ -195,6 +197,17 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
           <PageBoundary>
             <RequireAccess requireAuth>
               <ProfilePage />
+            </RequireAccess>
+          </PageBoundary>
+        ),
+      },
+      {
+        // 无导航按钮，仅 URL 直达；AdminPage 内部按角色守卫（非管理员渲染 404 视图）。
+        path: '/admin',
+        element: (
+          <PageBoundary>
+            <RequireAccess requireAuth>
+              <AdminPage />
             </RequireAccess>
           </PageBoundary>
         ),

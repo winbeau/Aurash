@@ -5,6 +5,7 @@ only ever returned for the current user (PrivilegeS).  When a note's
 author is embedded, we use NoteAuthorOut (sid + nickname + avatar) so
 we never leak contact info via /notes responses.
 """
+
 from pydantic import Field, computed_field
 
 from app.schemas._base import CamelModel
@@ -24,16 +25,28 @@ class UserOut(CamelModel):
     wechat: str | None = None
     phone: str | None = None
     email: str | None = None
+    # Authorization tier ('user' | 'admin' | 'superadmin'). Populated from the
+    # users.role column; legacy/absent → 'user'. Drives the hidden /admin
+    # dashboard + material-management UI on the frontend.
+    role: str = "user"
 
     @computed_field(alias="isAdmin")  # type: ignore[prop-decorator]
     @property
     def is_admin(self) -> bool:
-        """True iff this user is the configured super-admin (settings.admin_sid).
+        """True for admin OR superadmin (the /admin-capable + manage-any-资料 set).
 
-        Derived (not a column) — so login / /auth/me return it with no route
-        change; drives admin-only UI (manage any 资料) on the frontend.
+        Derived (not a column) — login / /auth/me return it with no route
+        change. The configured bootstrap super-admin (settings.admin_sid) is
+        always included even if its role column lags (mirrors
+        services.auth.effective_role).
         """
-        return self.sid == settings.admin_sid
+        return self.role in ("admin", "superadmin") or self.sid == settings.admin_sid
+
+    @computed_field(alias="isSuperAdmin")  # type: ignore[prop-decorator]
+    @property
+    def is_super_admin(self) -> bool:
+        """True iff superadmin (can (de)promote admins). admin_sid always wins."""
+        return self.role == "superadmin" or self.sid == settings.admin_sid
 
 
 class NoteAuthorOut(CamelModel):

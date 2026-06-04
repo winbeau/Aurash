@@ -18,6 +18,7 @@ Responsibilities:
 - owner-permission helpers (write/modify require ``owner_sid == user.sid``);
 - disk path resolution for uploads under ``uploads/materials/<sid>/<rid>/``.
 """
+
 from __future__ import annotations
 
 import os
@@ -29,6 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import MaterialFile, MaterialResource, User
 from app.schemas.material import FileOut, ResourceOut
+from app.services.auth import is_admin
 from app.settings import settings
 
 # Disk layout: <repo>/backend/uploads/materials/<sid>/<rid>/<ts>-<rand>.<ext>.
@@ -46,6 +48,7 @@ _MAX_NAME_LEN = 200
 # Display-name sanitization
 # ---------------------------------------------------------------------------
 
+
 def clean_name(raw: str | None) -> str:
     """Sanitize a user-supplied file/folder name for the tree UI.
 
@@ -58,9 +61,7 @@ def clean_name(raw: str | None) -> str:
     """
     if not raw:
         return "file"
-    cleaned = "".join(
-        ch for ch in raw if ch == " " or (ord(ch) >= 0x20 and ord(ch) != 0x7F)
-    )
+    cleaned = "".join(ch for ch in raw if ch == " " or (ord(ch) >= 0x20 and ord(ch) != 0x7F))
     cleaned = cleaned.strip()
     if len(cleaned) > _MAX_NAME_LEN:
         cleaned = cleaned[:_MAX_NAME_LEN].rstrip()
@@ -70,6 +71,7 @@ def clean_name(raw: str | None) -> str:
 # ---------------------------------------------------------------------------
 # Human-readable size
 # ---------------------------------------------------------------------------
+
 
 def human_size(size_bytes: int | None) -> str | None:
     """Format a byte count as a short human string ("1.2 MB"), or None.
@@ -94,6 +96,7 @@ def human_size(size_bytes: int | None) -> str | None:
 # ---------------------------------------------------------------------------
 # Tree assembly (flat SELECT → Python dict, never .children/.files)
 # ---------------------------------------------------------------------------
+
 
 def _file_to_out(row: MaterialFile, children: list[FileOut]) -> FileOut:
     """Build a `FileOut` from a single ORM row + already-built children.
@@ -136,9 +139,7 @@ def build_file_tree(rows: list[MaterialFile]) -> list[FileOut]:
     return build(None)
 
 
-def resource_to_out(
-    resource: MaterialResource, files: list[FileOut] | None = None
-) -> ResourceOut:
+def resource_to_out(resource: MaterialResource, files: list[FileOut] | None = None) -> ResourceOut:
     """Map a `MaterialResource` row (+ optional tree) to `ResourceOut`.
 
     Reads only scalar columns; `files` is the already-built tree (or empty for
@@ -160,9 +161,8 @@ def resource_to_out(
 # Loaders
 # ---------------------------------------------------------------------------
 
-async def get_resource_or_404(
-    db: AsyncSession, rid: str
-) -> MaterialResource:
+
+async def get_resource_or_404(db: AsyncSession, rid: str) -> MaterialResource:
     """Fetch a non-deleted resource by id or raise 404."""
     resource = await db.get(MaterialResource, rid)
     if not resource or resource.deleted:
@@ -178,9 +178,7 @@ async def get_file_or_404(db: AsyncSession, file_id: str) -> MaterialFile:
     return node
 
 
-async def list_resource_files(
-    db: AsyncSession, rid: str
-) -> list[MaterialFile]:
+async def list_resource_files(db: AsyncSession, rid: str) -> list[MaterialFile]:
     """Flat SELECT of all non-deleted nodes of a resource, ordered.
 
     Ordered by ``(sort_order, created_at)`` so siblings come out in their
@@ -227,31 +225,30 @@ async def resources_with_trees(
     by_resource: dict[str, list[MaterialFile]] = {}
     for row in rows:
         by_resource.setdefault(row.resource_id, []).append(row)
-    return [
-        resource_to_out(r, build_file_tree(by_resource.get(r.id, [])))
-        for r in resources
-    ]
+    return [resource_to_out(r, build_file_tree(by_resource.get(r.id, []))) for r in resources]
 
 
 # ---------------------------------------------------------------------------
 # Permission helper
 # ---------------------------------------------------------------------------
 
+
 def ensure_owner(resource: MaterialResource, user: User) -> None:
     """Authorize a write/modify/delete on `resource`.
 
     Materials is a shared knowledge base: any logged-in user may *read* every
-    resource. Writes are restricted to the resource owner — **except** the
-    configured super-admin (``settings.admin_sid``), who may create/modify/
-    delete any resource and its files (super-admin CRUD-any, plan decision §1).
+    resource. Writes are restricted to the resource owner — **except** admins
+    and super-admins (``is_admin``), who may create/modify/delete any resource
+    and its files (admin CRUD-any, so both manager tiers co-manage 资料).
     """
-    if resource.owner_sid != user.sid and user.sid != settings.admin_sid:
+    if resource.owner_sid != user.sid and not is_admin(user):
         raise HTTPException(status_code=403, detail="只能修改自己的资料")
 
 
 # ---------------------------------------------------------------------------
 # Duplicate-name guard
 # ---------------------------------------------------------------------------
+
 
 async def assert_name_free(
     db: AsyncSession,
@@ -336,9 +333,7 @@ async def unique_upload_name(
         counter += 1
 
 
-async def next_sort_order(
-    db: AsyncSession, rid: str, parent_id: str | None
-) -> int:
+async def next_sort_order(db: AsyncSession, rid: str, parent_id: str | None) -> int:
     """Next ``sort_order`` (0..n) to append within a sibling scope."""
     conds = [
         MaterialFile.resource_id == rid,
@@ -357,6 +352,7 @@ async def next_sort_order(
 # Cascade soft-delete + physical unlink
 # ---------------------------------------------------------------------------
 
+
 def _unlink_storage(node: MaterialFile) -> None:
     """Physically remove a file's backing object from disk (best-effort).
 
@@ -374,9 +370,7 @@ def _unlink_storage(node: MaterialFile) -> None:
         pass
 
 
-async def soft_delete_subtree(
-    db: AsyncSession, root: MaterialFile
-) -> None:
+async def soft_delete_subtree(db: AsyncSession, root: MaterialFile) -> None:
     """Soft-delete `root` and (if a folder) its whole subtree, unlink files.
 
     Walks the resource's flat row set in Python (no ``.children`` traversal),
@@ -402,9 +396,7 @@ async def soft_delete_subtree(
         _unlink_storage(node)
 
 
-async def soft_delete_resource(
-    db: AsyncSession, resource: MaterialResource
-) -> None:
+async def soft_delete_resource(db: AsyncSession, resource: MaterialResource) -> None:
     """Soft-delete a resource + all its files (whole tree), unlink blobs.
 
     Caller commits.
@@ -419,6 +411,7 @@ async def soft_delete_resource(
 # ---------------------------------------------------------------------------
 # Reorder (with ancestor cycle guard)
 # ---------------------------------------------------------------------------
+
 
 async def reorder_file(
     db: AsyncSession, body_drag_id: str, body_drop_id: str, position: str
@@ -470,19 +463,13 @@ async def reorder_file(
         cursor = parent.parent_id if parent is not None else None
 
     # Ordered siblings of the *new* parent scope, excluding `drag` itself.
-    siblings = [
-        row
-        for row in rows
-        if row.parent_id == new_parent_id and row.id != drag.id
-    ]
+    siblings = [row for row in rows if row.parent_id == new_parent_id and row.id != drag.id]
 
     if position == "inside":
         insert_index = len(siblings)
     else:
         # Find `drop` among the (drag-removed) siblings.
-        drop_index = next(
-            (i for i, row in enumerate(siblings) if row.id == drop.id), None
-        )
+        drop_index = next((i for i, row in enumerate(siblings) if row.id == drop.id), None)
         if drop_index is None:
             # `drop` not in this scope (shouldn't happen) — append.
             insert_index = len(siblings)
@@ -498,6 +485,7 @@ async def reorder_file(
 # ---------------------------------------------------------------------------
 # URL / storage path composition
 # ---------------------------------------------------------------------------
+
 
 def public_url(sid: str, rid: str, fname: str) -> str:
     """Absolute public URL for a stored material file."""

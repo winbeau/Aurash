@@ -19,9 +19,12 @@ export const UserSchema = z.object({
   wechat: z.string().nullish(),
   phone: z.string().nullish(),
   email: z.string().nullish(),
-  /** True iff this user is the configured super-admin (backend settings.admin_sid).
-   * Gates admin-only UI (manage any 资料). nullish for back-compat. */
+  /** 授权层级：'user' | 'admin' | 'superadmin'（后端 users.role 列）。nullish 向后兼容。 */
+  role: z.enum(['user', 'admin', 'superadmin']).nullish(),
+  /** admin 或 superadmin（后端 computed）。Gates 隐藏 /admin + 管理任意资料。nullish 向后兼容。 */
   isAdmin: z.boolean().nullish(),
+  /** 仅 superadmin（后端 computed）。可增删管理员。nullish 向后兼容。 */
+  isSuperAdmin: z.boolean().nullish(),
 })
 export type User = z.infer<typeof UserSchema>
 
