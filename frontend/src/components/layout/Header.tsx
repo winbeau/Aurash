@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAuthStore } from '@/stores/authStore'
 import { cn } from '@/lib/cn'
 import { MegaMenu } from './MegaMenu'
+import { GitHubStars } from './GitHubStars'
 import { ProfileSettingsDialog } from '@/features/settings/ProfileSettingsDialog'
 
 export function Header() {
@@ -76,6 +77,8 @@ export function Header() {
           />
         </div>
       </form>
+
+      <GitHubStars />
 
       {mode === 'authed' && user ? (
         <DropdownMenu>
