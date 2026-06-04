@@ -5,15 +5,24 @@
 # Why no early-exit on HEAD==REMOTE: it's bitten us when someone (or an agent)
 # git-pull'd manually first, then ran ./deploy.sh expecting the side effects.
 # uv sync + alembic upgrade + systemctl restart are all cheap & idempotent,
-# so we just always run them. Use --dry-run to check status without restarting.
+# so we just always run them.
+#
+# Flags:
+#   --dry-run    check git status only; skip sync/migrate/restart/build.
+#   --pull-data  ALSO refresh schools/conferences reference data from the HF
+#                dataset. OFF by default: a normal deploy never touches HF (it
+#                serves the existing working-tree copy). Ongoing backup of live
+#                state is the sync-push cron's job, not deploy's.
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT="$(pwd)"
 
 DRY_RUN=0
+PULL_DATA=0
 for arg in "$@"; do
     case "$arg" in
         --dry-run) DRY_RUN=1 ;;
+        --pull-data) PULL_DATA=1 ;;
         *) echo "unknown flag: $arg" >&2; exit 2 ;;
     esac
 done
@@ -33,20 +42,27 @@ if [ "$DRY_RUN" = "1" ]; then
     exit 0
 fi
 
-# Schools reference data lives out-of-band on the xju-feiyue-data HF dataset
-# (git no longer carries the ~20MB sqlite). Refresh it best-effort: if HF auth
-# or network is unavailable we keep serving the existing working-tree copy, and
-# the backend hot-reloads on mtime once the file lands. Never fail the deploy.
-if make schools-pull-force; then
-    echo "== schools data refreshed from HF"
+# HF data pull is OPT-IN (--pull-data). By default deploy does NOT touch HF and
+# serves the existing working-tree copy of the schools/conferences reference
+# data. Rationale: the pull only refreshes regenerable reference blobs, and
+# attempting it on every deploy was pure noise/failure whenever HF auth lapsed.
+# Live state (DB + uploads + secrets) is backed up out-of-band by the sync-push
+# cron, never here. Pass --pull-data on a fresh machine or after regenerating
+# schools/conferences to refresh from the dataset; failures stay non-fatal and
+# the backend hot-reloads on mtime once a new file lands.
+if [ "$PULL_DATA" = "1" ]; then
+    if make schools-pull-force; then
+        echo "== schools data refreshed from HF"
+    else
+        echo "!! schools data pull failed (HF auth/network?) — serving existing copy"
+    fi
+    if make conf-pull-force; then
+        echo "== conferences data refreshed from HF"
+    else
+        echo "!! conferences data pull failed (HF auth/network?) — serving existing copy"
+    fi
 else
-    echo "!! schools data pull skipped (HF auth/network?) — serving existing copy"
-fi
-
-if make conf-pull-force; then
-    echo "== conferences data refreshed from HF"
-else
-    echo "!! conferences data pull skipped (HF auth/network?) — serving existing copy"
+    echo "== HF data pull skipped (default; pass --pull-data to refresh schools/conferences)"
 fi
 
 cd backend

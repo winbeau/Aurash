@@ -84,7 +84,7 @@ def check_hf_token() -> None:
     console.print(
         Panel(
             "Run this in another shell to log in:\n\n"
-            "  [bold]uv run --project scripts/sync python -m huggingface_hub.commands.huggingface_cli login[/bold]\n\n"
+            "  [bold]uv run --project scripts/sync hf auth login[/bold]\n\n"
             "Use a token with [bold]write[/bold] scope. Generate one at:\n"
             "  https://huggingface.co/settings/tokens\n\n"
             "Then re-run [bold]make sync-bootstrap[/bold].",

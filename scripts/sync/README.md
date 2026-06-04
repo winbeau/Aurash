@@ -42,8 +42,11 @@ private. Only `.env.local` (JWT/API keys) is age-encrypted.
 2. `uv` on `PATH` (`~/.local/bin/uv`)
 3. HF login (token with **write** scope):
    ```
-   uv run --project scripts/sync python -m huggingface_hub.commands.huggingface_cli login
+   uv run --project scripts/sync hf auth login        # or: huggingface-cli login
    ```
+   (writes `~/.cache/huggingface/token`, which cron reads). The old
+   `python -m huggingface_hub.commands.huggingface_cli` path no longer exists in
+   current `huggingface_hub`.
 4. `make sync-bootstrap` — verifies deps + token, prompts twice for an age
    passphrase (saved 0600 to `~/.config/labnotes-sync/age.passphrase` — back it
    up, it's irrecoverable), prompts for `repo_id` (default
@@ -109,7 +112,9 @@ tail -f ~/.cache/labnotes-sync.log                 # cron output
 cat ~/.cache/labnotes-sync.alert 2>/dev/null       # set after consecutive cron failures
 ```
 
-HTTP 401 on push → token expired, re-run the `huggingface_cli login` above.
+HTTP 401 on push → token expired, re-run `hf auth login` (step 3 above). The
+push reads `repo_id` from `~/.config/labnotes-sync/config.toml`; if it ever
+404s, confirm that points at the current dataset name (`winbeau/xju-feiyue-data`).
 
 ## Layout
 
