@@ -122,20 +122,20 @@ export function MaterialListView({ onOpenResource }: Props) {
     <main className="w-full px-7 pb-24 pt-7 xl:px-10">
       {confirmHost}
 
-      {/* 顶部行：标题+计数（左） / 致谢长条（中，flex-1） / 搜索框 + 最近上传（右）。
-          窄屏 flex-wrap 优雅换行（致谢长条 order-last 落到独立整行）。 */}
+      {/* 顶部行：标题+计数+致谢长条（左，同一 baseline 组，致谢 flex-1 撑开） /
+          搜索框 + 最近上传（右）。窄屏 flex-wrap 优雅换行。 */}
       <header className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-3">
-        <div className="flex shrink-0 items-baseline gap-3">
-          <h1 className="m-0 font-serif text-[28px] font-semibold tracking-[-0.01em] text-text">
+        <div className="flex min-w-0 flex-1 items-baseline gap-3">
+          <h1 className="m-0 shrink-0 font-serif text-[28px] font-semibold tracking-[-0.01em] text-text">
             资料
           </h1>
-          <span className="font-sans text-[13px] text-text-muted">
+          <span className="shrink-0 font-sans text-[13px] text-text-muted">
             共 <strong className="font-semibold text-text">{resources.length}</strong> 份课程资料
           </span>
-        </div>
 
-        {/* 致谢信息条（白底小圆角细长条；管理员可编辑/隐藏，溢出渐变淡出） */}
-        <MaterialNotice />
+          {/* 致谢信息条（白底小圆角细长条；与计数同 baseline；溢出渐变淡出） */}
+          <MaterialNotice />
+        </div>
 
         <div className="ml-auto flex shrink-0 items-center gap-2">
           {/* 页面级搜索 */}

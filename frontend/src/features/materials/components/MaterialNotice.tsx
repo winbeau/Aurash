@@ -143,7 +143,7 @@ export function MaterialNotice() {
         <button
           type="button"
           onClick={openEditor}
-          className="order-last inline-flex h-7 items-center gap-1.5 self-center rounded-md px-2 text-[13px] text-text-faint transition-colors hover:bg-bg-subtle hover:text-text-muted sm:order-none"
+          className="inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[13px] leading-5 text-text-faint transition-colors hover:bg-bg-subtle hover:text-text-muted"
         >
           <Plus className="size-3.5" />
           添加致谢
@@ -153,18 +153,23 @@ export function MaterialNotice() {
     )
   }
 
-  // 展示态：白底小圆角细长条，夹在计数与搜索框之间；溢出右侧渐变淡出。
+  // 展示态：白底小圆角细长条，与「共 N 份课程资料」同一 baseline；溢出右侧渐变淡出。
   return (
     <>
       <div
         className={cn(
-          'group order-last flex h-7 w-full min-w-0 items-center gap-2 self-center rounded-md',
-          'border border-border bg-bg px-3 sm:order-none sm:w-auto sm:min-w-[14rem] sm:flex-1',
+          'group flex min-w-0 flex-1 items-center gap-1.5 rounded-sm',
+          'border border-border bg-bg px-2.5 py-0.5',
         )}
       >
+        {/* baseline 锚：零宽真实文本基线，决定整条 baseline（绕开 overflow:hidden
+            合成的「底边基线」），使条内文字与计数文案下沿对齐。 */}
+        <span aria-hidden className="w-0 shrink-0 select-none text-[13px] leading-5">
+          {'​'}
+        </span>
         <div className="relative min-w-0 flex-1 overflow-hidden">
           <p
-            className="m-0 whitespace-nowrap text-[13px] leading-7 text-text-muted"
+            className="m-0 whitespace-nowrap text-[13px] leading-5 text-text-muted"
             title={content}
           >
             {renderContent(content)}
@@ -176,11 +181,11 @@ export function MaterialNotice() {
           />
         </div>
         {isAdmin ? (
-          <div className="-mr-1.5 flex shrink-0 items-center opacity-70 transition-opacity hover:opacity-100 focus-within:opacity-100">
+          <div className="-mr-1 flex shrink-0 items-center gap-0.5 self-center opacity-70 transition-opacity hover:opacity-100 focus-within:opacity-100">
             <Button
               variant="ghost"
               size="icon"
-              className="size-6 text-text-faint hover:text-text"
+              className="size-5 text-text-faint hover:text-text"
               aria-label="编辑致谢"
               title="编辑致谢"
               onClick={openEditor}
@@ -190,7 +195,7 @@ export function MaterialNotice() {
             <Button
               variant="ghost"
               size="icon"
-              className="size-6 text-text-faint hover:text-cat-research"
+              className="size-5 text-text-faint hover:text-cat-research"
               aria-label="删除致谢"
               title="删除致谢"
               onClick={() => del.mutate()}
