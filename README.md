@@ -305,4 +305,4 @@ uv run uvicorn app.main:app --reload
 
 ## License
 
-默认仅供站点运营方使用；对外引用 / 二次分发请先开 Issue 商榷。
+[MIT](./LICENSE) © 2026 winbeau
